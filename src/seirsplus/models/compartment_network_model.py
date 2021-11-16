@@ -9,7 +9,7 @@ import scipy.integrate
 import copy
 import json
 
-from utils import *
+from seirsplus.utils import *
 
 ########################################################
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#

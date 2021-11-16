@@ -9,7 +9,7 @@ import scipy.integrate
 import copy
 import json
 
-from utils import *
+from seirsplus.utils import *
 
 ########################################################
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#
@@ -19,12 +19,16 @@ from utils import *
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#
 ########################################################
 
-class CompartmentModelBuilider():
+class CompartmentModelBuilder():
+    """
+    The CompartmentModelBuilder class gives helper functions for defining
+    a new compartment model from scratch within a python script. Initializes
+    an empty dictinary, compartments, that new compartments can be added to. 
 
+    """
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def __init__(self):
-
        self.compartments = {}
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -32,6 +36,21 @@ class CompartmentModelBuilider():
     def add_compartment(self, name, transitions=None, transmissibilities=None, susceptibilities=None, 
                                 initial_prevalence=0.0, exogenous_prevalence=0.0, flags=None, 
                                 default_state=None, exclude_from_eff_pop=False):
+
+        """
+        Function to build an individual compartment for a compartment model
+
+        Args:
+            name (string): name of the compartment
+            transitions:
+            susceptibilities:
+            initial_prevalence (float):
+            exogenous_prevalence (float): 
+            flags:
+            default_state:
+            exclude_from_eff_pop:
+
+        """
         self.compartments[name] = { 'transitions':          transitions if transitions is not None else {}, 
                                     'transmissibilities':   transmissibilities if transmissibilities is not None else {}, 
                                     'susceptibilities':     susceptibilities if susceptibilities is not None else {},
@@ -47,13 +66,27 @@ class CompartmentModelBuilider():
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def add_compartments(self, names):
+        """Function to compartments to a compartment model using the add_compartment function
+        
+        Args:
+            names (list): list of compartment names to add to the compartment model
+        """
         for name in names:
             self.add_compartment(name)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def add_transition(self, compartment, to, upon_exposure_to=None, rate=None, time=None, prob=None):
-        # Add transition for one compartment and destination state at a time
+        """function to add transition for one compartment and destination state at a time
+
+        Args:
+            compartment (string): name of compartment
+            to (string): 
+            upon_exposure_to (list): list of compartments that can cause a transition
+            rate:
+            time (float): how long it takes for transition to occur
+            prob (float): likelihood of the transition occuring
+        """
         infectiousStates = [upon_exposure_to] if (not isinstance(upon_exposure_to, (list, np.ndarray)) and upon_exposure_to is not None) else upon_exposure_to
         if(upon_exposure_to is None): # temporal transition
             transn_config = {}
