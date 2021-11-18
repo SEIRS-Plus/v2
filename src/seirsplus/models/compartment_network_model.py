@@ -10,6 +10,7 @@ import copy
 import json
 
 from seirsplus.utils import *
+from seirsplus.models.compartment_model_builder import CompartmentModelBuilder
 
 ########################################################
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#
@@ -187,7 +188,7 @@ class CompartmentNetworkModel():
                 new_compartments = json.load(compartments_file)
         elif(isinstance(new_compartments, dict)):
             pass
-        elif(isinstance(new_compartments, CompartmentModelBuilider)):
+        elif(isinstance(new_compartments, CompartmentModelBuilder)):
             new_compartments = new_compartments.compartments
         else:
             raise BaseException("Specify compartments with a dictionary or JSON file.")

@@ -1,9 +1,9 @@
-from seirsplus.models.compartment_model_builder import CompartmentModelBuilder
-from seirsplus.models.compartment_network_model import CompartmentNetworkModel
+from seirsplus.models import sarscov2_network_model
 from seirsplus import networks
 from seirsplus.utils import distributions
 import matplotlib.pyplot as plt
 import numpy as np
+
 
 #------------------------
 
@@ -21,8 +21,12 @@ networks = {"network": network}
 
 
 # Instantiate the model:
-model = CompartmentNetworkModel(compartments='./tests/testsim_scripts/compartments_SARSCoV2_workplacenet.json', networks=networks, 
-								transition_mode='time_in_state')
+#  - The following class defines a pre-configured SARSCoV2 model with heterogeneous 
+#    and realistic (at least for pre-delta) parameter distributions
+#     - Transmissibility is overdispersed in this configuration, so most individuals 
+#       are not expected to generate secondary cases, and many runs with low initial 
+#       prevalence never take off into epidemics.
+model = sarscov2_network_model.SARSCoV2NetworkModel(networks=networks)
 
 # Set up the initial state:
 model.set_initial_prevalence('E', 0.01)
