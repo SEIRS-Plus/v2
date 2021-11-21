@@ -634,7 +634,7 @@ def main(argv):
             try:
                 arange = [float(s) for s in arg[1:-1].split(",")]
                 batch_setting["arange"] = arange
-            except Error:
+            except IndexError as error:
                 print(
                     "Invalid range, should have the following form : [start,end,incrementBy], try -h to see the usage and options "
                 )

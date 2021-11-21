@@ -1,5 +1,3 @@
-from __future__ import division
-
 # External Libraries
 import numpy
 import scipy
