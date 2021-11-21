@@ -31,8 +31,8 @@ setup(
         "networkx>=2.6.3",
         "numpy>=1.21.4",
         "scipy>=1.7.2",
-        "matplotlib>=3.5.0"
-        ],
+        "matplotlib>=3.5.0",
+    ],
     extra_require={
         "docs": ["Sphinx>=4.2.0"],
         "notebooks": ["jupyterlab>=3.2.0", "altair>=4.1.0"],
