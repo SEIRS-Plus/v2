@@ -32,6 +32,7 @@ setup(
         "numpy>=1.21.4",
         "scipy>=1.7.2",
         "matplotlib>=3.5.0",
+        "hypothesis"
     ],
     extra_require={
         "docs": ["Sphinx>=4.2.0"],
