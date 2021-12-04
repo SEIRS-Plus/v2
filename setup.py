@@ -6,8 +6,8 @@ import pathlib
 APP_NAME = "seirsplus"
 VERSION = "2.0.0"
 LICENSE = "MIT"
-AUTHOR = "Bergstrom Lab"
-DESCRIPTION = "Toolkit for modeling epidemic dynamics"
+AUTHOR = "Ryan Seamus McGee"
+DESCRIPTION = "Framework for modeling epidemic dynamics with interventions."
 URL = "https://github.com/SEIRS-Plus/v2.git"
 
 
@@ -28,10 +28,10 @@ setup(
     long_description_content_type="text/markdown",
     url=URL,
     install_requires=[
-        "networkx>=2.6.3",
-        "numpy>=1.21.4",
-        "scipy>=1.7.2",
-        "matplotlib>=3.5.0",
+        "networkx>=2.0",
+        "numpy",
+        "scipy",
+        "matplotlib",
     ],
     extra_require={
         "docs": ["Sphinx>=4.2.0"],
@@ -44,9 +44,9 @@ setup(
     entry_points="""
     [console_scripts]
     """,
-    python_requires=">=3.9",
+    python_requires=">=2.6",
     classifiers=[
-        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python",
         "License :: OSI Approved :: MIT License",
     ],
 )
