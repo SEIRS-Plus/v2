@@ -49,4 +49,5 @@ setup(
         "Programming Language :: Python",
         "License :: OSI Approved :: MIT License",
     ],
+    include_package_data=True
 )

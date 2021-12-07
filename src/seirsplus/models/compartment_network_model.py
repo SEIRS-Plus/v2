@@ -782,7 +782,10 @@ class CompartmentNetworkModel():
         # Process local transmissibility parameters for each network:
         #----------------------------------------
         try:
-            local_transm_vals = transm_dict[network]
+            # Use transmissibility values provided for this network if given,
+            # else us transmissibility values provided under generic 'local' key.
+            # (If neither of these are provided, defaults to 0 transmissibility in except)
+            local_transm_vals = transm_dict[network] if network in transm_dict else transm_dict['local']
             #----------------------------------------
             # Convert transmissibility value(s) to np array:
             local_transm_vals = np.array(local_transm_vals) if isinstance(local_transm_vals, (list, np.ndarray)) else np.full(fill_value=local_transm_vals, shape=(self.pop_size,1))
@@ -1290,9 +1293,9 @@ class CompartmentNetworkModel():
             sensitivity = sensitivities_timeCourse[node_daysInCompartment if node_daysInCompartment<len(sensitivities_timeCourse) else -1]
             specificity = specificities_timeCourse[node_daysInCompartment if node_daysInCompartment<len(specificities_timeCourse) else -1]
             if(sensitivity > 0.0): # individual is in a state where the test can return a true positive
-                positive_result = (numpy.random.rand() < sensitivity)
+                positive_result = (np.random.rand() < sensitivity)
             elif(specificity < 1.0): # individual is in a state where the test can return a false positive
-                positive_result = (numpy.random.rand() > specificity)
+                positive_result = (np.random.rand() > specificity)
             else:
                 positive_result = False
             results.append(positive_result)
@@ -1311,7 +1314,7 @@ class CompartmentNetworkModel():
                                     cadence_presets='default',
                                     intervention_start_time=0,
                                     intervention_start_prevalence=0,
-                                    prevalence_flag=['infected'],
+                                    prevalence_flags=['infected'],
                                     # State onset intervention params:
                                     onset_compartments=[], # not yet used
                                     onset_flags=[], 
@@ -1399,7 +1402,7 @@ class CompartmentNetworkModel():
                                         'never':        []
                                     }
         if(init_cadence_offset == 'random'):
-            init_cadence_offset = numpy.random.choice(range(cadence_cycle_length))
+            init_cadence_offset = np.random.choice(range(cadence_cycle_length))
 
         last_cadence_time  = -1
 
@@ -1423,7 +1426,7 @@ class CompartmentNetworkModel():
             elif(test_params is None):
                 # If no test params are given, default to a test that is 100% sensitive/specific to all compartments with the 'infected' flag:
                 test_params = {}
-                infectedFlagCompartments = self.get_compartments_by_flag(prevalence_flag)
+                infectedFlagCompartments = self.get_compartments_by_flag(prevalence_flags)
                 for compartment in self.compartments:
                     test_params.update({compartment: {"default_test": {"sensitivity": 1.0 if compartment in infectedFlagCompartments else 0.0, "specificity": 1.0}}})
             else:
@@ -1454,7 +1457,7 @@ class CompartmentNetworkModel():
         test_type_traced    = test_type_traced if test_type_traced is not None else list(self.test_types)[0] if len(self.test_types)>0 else None
         test_type_proactive = test_type_proactive if test_type_proactive is not None else list(self.test_types)[0] if len(self.test_types)>0 else None
 
-        proactiveTestingTimes = [cadence_presets[individual_cadence] for individual_cadence in proactive_testing_cadence] if isinstance(proactive_testing_cadence, (list, numpy.ndarray)) else [cadence_presets[proactive_testing_cadence]]*self.pop_size
+        proactiveTestingTimes = [cadence_presets[individual_cadence] for individual_cadence in proactive_testing_cadence] if isinstance(proactive_testing_cadence, (list, np.ndarray)) else [cadence_presets[proactive_testing_cadence]]*self.pop_size
 
         #----------------------------------------
         # Initialize individual compliances:
@@ -1533,7 +1536,7 @@ class CompartmentNetworkModel():
 
                 last_cadence_time = current_cadence_time
 
-                currentNumInfected = self.get_count_by_flag(prevalence_flag)
+                currentNumInfected = self.get_count_by_flag(prevalence_flags)
                 currentPrevalence  = currentNumInfected/self.N[self.tidx]
                 currentNumIsolated = np.count_nonzero(self.isolation)
 
@@ -1543,8 +1546,8 @@ class CompartmentNetworkModel():
                 
                 if(interventionOn):
 
-                    print("[INTERVENTIONS @ t = %.2f (~%.2f) :: Currently %d infected (%.2f%%), %d isolated]" % (self.t, current_cadence_time, currentNumInfected, currentPrevalence*100, currentNumIsolated))
-                    print("\tState counts: ", list(zip(numpy.unique(self.X, return_counts=True)[0], numpy.unique(self.X, return_counts=True)[-1])))
+                    print("[INTERVENTIONS @ t = %.2f (t_cadence ~%.2f) :: Currently %d infected (%.2f%%), %d isolated]" % (self.t, current_cadence_time, currentNumInfected, currentPrevalence*100, currentNumIsolated))
+                    print("\tState counts: ", list(zip(np.unique(self.X, return_counts=True)[0], np.unique(self.X, return_counts=True)[-1])))
 
                     isolationSet_onset              = set()
                     isolationSet_onset_groupmate    = set()
@@ -1654,7 +1657,7 @@ class CompartmentNetworkModel():
                             # Include in the proactive testing pool individuals that meet the following criteria:
                             #---------------------------------------------
                             proactiveTestingPool = np.argwhere( #Proactive testing scheduled at this time:
-                                                                (numpy.array([current_cadence_time in individual_times for individual_times in proactiveTestingTimes]))
+                                                                (np.array([current_cadence_time in individual_times for individual_times in proactiveTestingTimes]))
                                                                 #Compliant with proactive testing:
                                                                 & (testing_compliance_proactive==True)
                                                                 # Not excluded by compartment, flags, num tests, or num vaccine doses:
@@ -1665,7 +1668,7 @@ class CompartmentNetworkModel():
                             #---------------------------------------------
                             numRandomTests = min( int(self.pop_size*testing_capacity_proactive), len(proactiveTestingPool))
                             if(numRandomTests > 0):
-                                testingSet_proactive = set(numpy.random.choice(proactiveTestingPool, numRandomTests, replace=False))
+                                testingSet_proactive = set(np.random.choice(proactiveTestingPool, numRandomTests, replace=False))
 
 
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
