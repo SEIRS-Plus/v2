@@ -652,6 +652,12 @@ class CompartmentNetworkModel:
         return True
 
     def update_data_series(self):
+        """
+        Stores the current time and state values in arrays that store these values 
+        for every time step in the simulation --  builds up time series. 
+        Also updates time series for counts of individuals with given flag(s) or individuals 
+        in user-specified node groups as applicable.
+        """
         # Update the time series:
         self.tseries[self.tidx] = self.t
 
