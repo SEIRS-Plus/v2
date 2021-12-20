@@ -50,8 +50,6 @@ class Comms:
                     f.write(str(i) + ' ')
                  f.write('\n')
 
-             
-            
 class Graph:
     def __init__(self,directed=False, weighted=False):
         self.n = 0

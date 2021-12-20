@@ -2,7 +2,7 @@
 from importlib import metadata
 
 # Internal Libraries
-from .utils.logging_utils import _configure_seirsplus_loggers
+from .dev_tools.logging_utils import _configure_seirsplus_loggers
 
 
 _configure_seirsplus_loggers(root_module_name=__name__)

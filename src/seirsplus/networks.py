@@ -6,8 +6,7 @@ import matplotlib.pyplot as pyplot
 
 # Internal Libraries
 import seirsplus.FARZ as FARZ
-from seirsplus.utils.io import *
-from seirsplus.utils.distributions import *
+from seirsplus.utils import *
 
 
 
@@ -393,7 +392,8 @@ def generate_community_networks(
         age_groups[bracket]['indices'] = list(range(curidx, curidx + age_groups[bracket]['size']))
         curidx += age_groups[bracket]['size']
         # Store label of age assigned to each node:
-        node_labels[min(age_groups[bracket]['indices']) : max(age_groups[bracket]['indices'])] = ['age_'+bracket] * age_groups[bracket]['size']
+        if(len(age_groups[bracket]['indices']) > 0):
+            node_labels[min(age_groups[bracket]['indices']) : max(age_groups[bracket]['indices'])] = ['age'+bracket] * age_groups[bracket]['size']
 
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
