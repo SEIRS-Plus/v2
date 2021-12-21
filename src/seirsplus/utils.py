@@ -45,10 +45,11 @@ def gamma_dist(mean, coeffvar, N):
     return np.random.gamma(scale=scale, shape=shape, size=N)
 
 
-def dist_stats(dists, names=None, plot=False, bin_size=1, colors=None, reverse_plot=False):
+# def dist_stats(dists, names=None, plot=False, bin_size=1, colors=None, reverse_plot=False):
+def dist_stats(dists, names=None):
     dists  = [dists] if not isinstance(dists, list) else dists
     names  = ([names] if (names is not None and not isinstance(names, list)) else (names if names is not None else [None] * len(dists)))
-    colors = ([colors] if (colors is not None and not isinstance(colors, list)) else (colors if colors is not None else plt.rcParams["axes.prop_cycle"].by_key()["color"]))
+    # colors = ([colors] if (colors is not None and not isinstance(colors, list)) else (colors if colors is not None else plt.rcParams["axes.prop_cycle"].by_key()["color"]))
 
     stats = {}
 
@@ -74,30 +75,31 @@ def dist_stats(dists, names=None, plot=False, bin_size=1, colors=None, reverse_p
         )
         print()
 
-        if plot:
-            plt.hist(
-                dist,
-                bins=np.arange(0, int(max(dist) + 1), step=bin_size),
-                label=(name if name else False),
-                color=colors[i],
-                edgecolor="white",
-                alpha=0.6,
-                zorder=(-1 * i if reverse_plot else i),
-            )
+        # if plot:
+        #     plt.hist(
+        #         dist,
+        #         bins=np.arange(0, int(max(dist) + 1), step=bin_size),
+        #         label=(name if name else False),
+        #         color=colors[i],
+        #         edgecolor="white",
+        #         alpha=0.6,
+        #         zorder=(-1 * i if reverse_plot else i),
+        #     )
 
-    if plot:
-        plt.ylabel("num nodes")
-        plt.legend(loc="upper right")
-        plt.show()
+    # if plot:
+    #     plt.ylabel("num nodes")
+    #     plt.legend(loc="upper right")
+    #     plt.show()
 
     return stats
 
 
-def network_stats(networks, names=None, calc_avg_path_length=False, calc_num_connected_comps=False, plot=False, bin_size=1, colors=None, reverse_plot=False):
+# def network_stats(networks, names=None, calc_avg_path_length=False, calc_num_connected_comps=False, plot=False, bin_size=1, colors=None, reverse_plot=False):
+def network_stats(networks, names=None, calc_avg_path_length=False, calc_num_connected_comps=False):
     import networkx
     networks = [networks] if not isinstance(networks, list) else networks
     names    = ['']*len(networks) if names is None else [names] if not isinstance(names, list) else names
-    colors = [colors] if(colors is not None and not isinstance(colors, list)) else (colors if colors is not None else plt.rcParams['axes.prop_cycle'].by_key()['color'])
+    # colors = [colors] if(colors is not None and not isinstance(colors, list)) else (colors if colors is not None else plt.rcParams['axes.prop_cycle'].by_key()['color'])
     
     stats = {}
 
@@ -158,13 +160,13 @@ def network_stats(networks, names=None, calc_avg_path_length=False, calc_num_con
         print("Avg. path length: ", avg_path_length)
         print("Connected comps.: ", num_connected_comps)
         
-        if(plot):
-            plt.hist(degree, bins=np.arange(0, int(max(degree)+1), step=bin_size), label=(name+" degree" if name else False), color=colors[i], edgecolor='white', alpha=0.6, zorder=(-1*i if reverse_plot else i))
+    #     if(plot):
+    #         plt.hist(degree, bins=np.arange(0, int(max(degree)+1), step=bin_size), label=(name+" degree" if name else False), color=colors[i], edgecolor='white', alpha=0.6, zorder=(-1*i if reverse_plot else i))
     
-    if(plot):
-        plt.ylabel('num nodes')
-        plt.legend(loc='upper right')
-        plt.show()
+    # if(plot):
+    #     plt.ylabel('num nodes')
+    #     plt.legend(loc='upper right')
+    #     plt.show()
 
     return stats
 
