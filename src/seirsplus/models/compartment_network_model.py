@@ -2,6 +2,7 @@
 Custom compartment models with contact networks
 """
 # Standard Libraries
+from copy import copy
 import json
 
 # External Libraries
@@ -47,7 +48,7 @@ class CompartmentNetworkModel():
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.pop_size = None # will be updated in update_networks()
         self.networks = {}
-        self.update_networks(networks)
+        self.update_networks(copy(networks))
 
         self.mixedness = mixedness
         self.openness  = openness
