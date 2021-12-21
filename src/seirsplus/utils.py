@@ -1,6 +1,5 @@
 # External Libraries
 import numpy as np
-import matplotlib.pyplot as plt
 import json
 try:
 	import importlib.resources as pkg_resources

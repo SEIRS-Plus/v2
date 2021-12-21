@@ -2,7 +2,6 @@
 import numpy as np
 import scipy
 import networkx
-import matplotlib.pyplot as pyplot
 
 # Internal Libraries
 import seirsplus.FARZ as FARZ
