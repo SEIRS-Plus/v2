@@ -8,7 +8,7 @@ import numpy as np
 
 # ------------------------
 
-N = 1000
+N = 200
 
 networks, clusters, households, age_groups, node_labels = generate_community_networks(N)
 
