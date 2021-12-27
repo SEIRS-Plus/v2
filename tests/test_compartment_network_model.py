@@ -1,7 +1,7 @@
 from hypothesis.strategies._internal.core import sampled_from
 from hypothesis.strategies._internal.numbers import integers
 from numpy.core.fromnumeric import size
-from seirsplus.models.compartment_model_builder import CompartmentModelBuilder
+#from seirsplus.models.compartment_model_builder import CompartmentModelBuilder
 from seirsplus.models.compartment_network_model import CompartmentNetworkModel
 from seirsplus.models.sarscov2_network_model import SARSCoV2NetworkModel
 from seirsplus.networks import *
@@ -52,10 +52,15 @@ def test_set_initial_prevalence(prevalence):
 @given(node=st.lists(st.integers(min_value=0, max_value=N-1)), state=st.characters(whitelist_categories='L', whitelist_characters=['S', 'E', 'P', 'I', 'A', 'R']))
 def test_set_state(node, state):
     model.set_state(node, state)
+    for i in node:
+        assert(model.X[i] == state)
 
 @given(rate=st.lists(elements=st.floats(min_value=0.0, max_value=1.0), min_size=N, max_size=N))
 def test_set_transition_rate(rate):
     model.set_transition_rate('E', 'S', np.array(rate))
+    trans_dict = model.compartments['E']['transitions']
+    assert(trans_dict['S']['rate'] == rate)
+    assert(trans_dict['S']['time'] == 1/rate)
 
 @given(susceptibility=st.lists(elements=st.floats(min_value=0.0, max_value=1.0), min_size=N, max_size=N))
 def test_set_susceptibility(susceptibility):
