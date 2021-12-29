@@ -2,7 +2,7 @@
 Custom compartment models with contact networks
 """
 # Standard Libraries
-from copy import copy
+import copy
 import json
 
 # External Libraries
@@ -26,7 +26,7 @@ class CompartmentNetworkModel():
                     isolation_period=None,
                     transition_mode='exponential_rates', 
                     local_trans_denom_mode='all_contacts',
-                    log_infection_info=False,
+                    track_case_info=False,
                     store_Xseries=False,
                     node_groups=None,
                     seed=None):
@@ -41,17 +41,31 @@ class CompartmentNetworkModel():
         self.transition_mode        = transition_mode
         self.transition_timer_wt    = 1e5
         self.local_trans_denom_mode = local_trans_denom_mode
-        self.log_infection_info     = log_infection_info
+        self.track_case_info        = track_case_info
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the contact networks specifications:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.pop_size = None # will be updated in update_networks()
         self.networks = {}
-        self.update_networks(copy(networks))
+        self.update_networks(copy.copy(networks))
 
         self.mixedness = mixedness
         self.openness  = openness
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Initialize compartment metadata:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        self.stateID               = {}
+        self.default_state         = None #  list(self.compartments.keys())[0] # default to first compartment specified
+        self.excludeFromEffPopSize = []
+        self.node_flags            = [[] for i in range(self.pop_size)]
+        self.allNodeFlags          = set() 
+        self.allCompartmentFlags   = set()
+        self.counts            = {}
+        self.flag_counts       = {} 
+        self.track_flag_counts = True
+        self.store_Xseries     = store_Xseries
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the compartment model configuration and parameterizations:
@@ -77,34 +91,41 @@ class CompartmentNetworkModel():
         self.isolation_timer    = np.zeros(self.pop_size)
         self.totalIsolationTime = np.zeros(self.pop_size)
 
+        # # #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # # # Initialize compartment IDs/metadata:
+        # # #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # self.stateID               = {}
+        # self.default_state         = list(self.compartments.keys())[0] # default to first compartment specified
+        # self.excludeFromEffPopSize = []
+        # self.node_flags            = [[] for i in range(self.pop_size)]
+        # self.allNodeFlags          = set() 
+        # self.allCompartmentFlags   = set()
+        # for c, compartment in enumerate(self.compartments):
+        #     comp_params = self.compartments[compartment]
+        #     #----------------------------------------
+        #     # Assign state ID number to each compartment (for internal state comparisons):
+        #     # self.stateID[compartment] = c 
+        #     #----------------------------------------
+        #     # Update the default compartment for this model:
+        #     if('default_state' in comp_params and comp_params['default_state']==True):
+        #         self.default_state = compartment
+        #     #----------------------------------------
+        #     # Update which compartments are excluded when calculating effective population size (N):
+        #     if('exclude_from_eff_pop' in comp_params and comp_params['exclude_from_eff_pop']==True):
+        #         self.excludeFromEffPopSize.append(compartment)
+        #     #----------------------------------------
+        #     # Update which compartment flags are in use:
+        #     if('flags' not in self.compartments[compartment]):
+        #         self.compartments[compartment]['flags'] = []
+        #     for flag in self.compartments[compartment]['flags']:
+        #         self.allCompartmentFlags.add(flag)
+
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Initialize compartment IDs/metadata:
+        # Initialize testing, vaccination, etc:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        self.stateID               = {}
-        self.default_state         = list(self.compartments.keys())[0] # default to first compartment specified
-        self.excludeFromEffPopSize = []
-        self.node_flags            = [[] for i in range(self.pop_size)]
-        self.allNodeFlags          = set() 
-        self.allCompartmentFlags   = set()
-        for c, compartment in enumerate(self.compartments):
-            comp_params = self.compartments[compartment]
-            #----------------------------------------
-            # Assign state ID number to each compartment (for internal state comparisons):
-            self.stateID[compartment] = c
-            #----------------------------------------
-            # Update the default compartment for this model:
-            if('default_state' in comp_params and comp_params['default_state']==True):
-                self.default_state = compartment
-            #----------------------------------------
-            # Update which compartments are excluded when calculating effective population size (N):
-            if('exclude_from_eff_pop' in comp_params and comp_params['exclude_from_eff_pop']==True):
-                self.excludeFromEffPopSize.append(compartment)
-            #----------------------------------------
-            # Update which compartment flags are in use:
-            if('flags' not in self.compartments[compartment]):
-                self.compartments[compartment]['flags'] = []
-            for flag in self.compartments[compartment]['flags']:
-                self.allCompartmentFlags.add(flag)
+        self.test_params    = {}
+        self.test_types     = set()
+        self.vaccine_series = {}
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize data series for tracking node subgroups:
@@ -127,10 +148,6 @@ class CompartmentNetworkModel():
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize counts/prevalences and the states of individuals:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        self.counts            = {}
-        self.flag_counts       = {} 
-        self.track_flag_counts = True
-        self.store_Xseries     = store_Xseries
         self.process_initial_states()
 
         #----------------------------------------
@@ -198,7 +215,7 @@ class CompartmentNetworkModel():
             for key, value in nested_dict.items():
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                 # Do not recurse or reshape these params
-                if(key in ['transmissibilities', 'initial_prevalence', 'exogenous_prevalence', 'default_state', 'exclude_from_eff_pop', 'flags']):
+                if(key in ['transmissibilities', 'initial_prevalence', 'exogenous_prevalence', 'default_state', 'exclude_from_eff_pop', 'flags', 'vaccinated', 'vaccine_series']):
                     pass
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                 # Recurse through sub dictionaries
@@ -209,10 +226,8 @@ class CompartmentNetworkModel():
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                 else:
                     nested_dict[key] = utils.param_as_array(value, (self.pop_size,1))
-
+        #----------------------------------------
         reshape_param_vals(new_compartments)
-
-        #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Recursively process transition probabilities:
@@ -240,8 +255,6 @@ class CompartmentNetworkModel():
                     pass
         #----------------------------------------
         process_transition_params(new_compartments)
-
-        #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Transmissibility parameters are preprocessed and shaped into pairwise matrices
@@ -272,15 +285,13 @@ class CompartmentNetworkModel():
                 # which pre-combine transmissibility, adjacency, and freq-dep offset terms.
                 #----------------------------------------
                 # M_G = (AB)_G * D_G
-                self.infectivity_mat[compartment][network] = scipy.sparse.csr_matrix.multiply(transm_dict[network], transm_dict['offsets'][network])
+                self.infectivity_mat[compartment][network] = scipy.sparse.csr_matrix.multiply(transm_dict[network].astype(float), transm_dict['offsets'][network].astype(float))
             #----------------------------------------
             if('exogenous' not in transm_dict or not isinstance(transm_dict['exogenous'], (int, float))):
                 transm_dict['exogenous'] = 0.0
             #----------------------------------------
             if('global' not in transm_dict or not isinstance(transm_dict['global'], (int, float))):
                 transm_dict['global'] = np.sum([np.sum(transm_dict[network][transm_dict[network]!=0]) for network in self.networks]) / max(np.sum([transm_dict[network].count_nonzero() for network in self.networks]), 1)
-
-        #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Check the initial and exogenous_prevalence params for each compartment, defaulting to 0 when missing or invalid:
@@ -291,7 +302,37 @@ class CompartmentNetworkModel():
             if('exogenous_prevalence' not in comp_dict or not isinstance(comp_dict['exogenous_prevalence'], (int, float))):
                 comp_dict['exogenous_prevalence'] = 0.0
 
-        #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Initialize compartment IDs/metadata:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        for c, compartment in enumerate(new_compartments):
+            comp_params = new_compartments[compartment]
+            #----------------------------------------
+            # Assign state ID number to each compartment (for internal state comparisons):
+            if(compartment not in self.stateID):
+                self.stateID[compartment] = len(list(self.stateID.keys())) + 1 
+            #----------------------------------------
+            # Update the default compartment for this model:
+            if('default_state' in comp_params and comp_params['default_state']==True):
+                self.default_state = compartment
+            #----------------------------------------
+            # Update which compartments are excluded when calculating effective population size (N):
+            if('exclude_from_eff_pop' in comp_params and comp_params['exclude_from_eff_pop']==True):
+                self.excludeFromEffPopSize.append(compartment)
+            #----------------------------------------
+            # Update which compartment flags are in use:
+            if('flags' not in new_compartments[compartment]):
+                new_compartments[compartment]['flags'] = []
+            for flag in new_compartments[compartment]['flags']:
+                self.allCompartmentFlags.add(flag)
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Instantiate data series for counts for any new compartments:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        for c, compartment in enumerate(new_compartments):
+            if(compartment not in self.counts):
+                self.counts[compartment] = (np.zeros_like(self.counts[self.default_state]) if self.default_state is not None and self.default_state in self.counts
+                                            else np.zeros(self.pop_size*min(len(self.compartments)+len(new_compartments), 10)))
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the model object with the new processed compartments
@@ -329,10 +370,10 @@ class CompartmentNetworkModel():
                     continue
 
                 if(self.transition_mode == 'time_in_state'):
-                    propensity_temporal_transition = (self.transition_timer_wt * (np.greater(self.state_timer, transition_params['time']) & (self.X==self.stateID[compartment])) * transition_params['active_path']) if any(transition_params['time']) else np.zeros_like(self.X)
+                    propensity_temporal_transition = (self.transition_timer_wt * (np.greater(self.state_timer, transition_params['time']) & (self.X==self.stateID[compartment])) * transition_params['path_taken']) if any(transition_params['time']) else np.zeros_like(self.X)
 
                 else: # exponential_rates
-                    propensity_temporal_transition = transition_params['rate'] * (self.X==self.stateID[compartment]) * transition_params['active_path']
+                    propensity_temporal_transition = transition_params['rate'] * (self.X==self.stateID[compartment]) * transition_params['path_taken']
 
                 propensities.append(propensity_temporal_transition)
                 transitions.append({'from':compartment, 'to':destState, 'type':'temporal'})
@@ -424,7 +465,7 @@ class CompartmentNetworkModel():
                         print("Destination state", destState, "is not a defined compartment.")
                         continue
 
-                    propensity_infection_transition = propensity_infection * transition_params['active_path']
+                    propensity_infection_transition = propensity_infection * transition_params['path_taken']
 
                     propensities.append(propensity_infection_transition)
                     transitions.append({'from':compartment, 'to':destState, 'type':'infection'})
@@ -522,19 +563,20 @@ class CompartmentNetworkModel():
             transitionNode = transitionIdx % self.pop_size
             transition     = transitions[ int(transitionIdx/self.pop_size) ]
 
+            print(transition['from'], '-->', transition['to'])
+
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # Perform updates triggered by event:
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             assert(self.X[transitionNode]==self.stateID[transition['from']]), "Assertion error: Node "+str(transitionNode)+" has unexpected current state "+str(self.X[transitionNode])+" given the intended transition of "+transition['from']+"->"+transition['to']+"."
             self.set_state(transitionNode, transition['to']) # self.X[transitionNode] = self.stateID[transition['to']]
-            self.state_timer[transitionNode] = 0.0
-            # TODO: some version of this?   self.testedInCurrentState[transitionNode] = False
 
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # Gather and save information about transmission events when they occur:
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             if(transition['type'] == 'infection'):
-                self.process_new_case(transitionNode, transition)
+                if(self.track_case_info):
+                    self.process_new_case(transitionNode, transition)
                 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -630,14 +672,14 @@ class CompartmentNetworkModel():
         # Update the data series of counts of nodes with each flag:
         if(self.track_flag_counts):
             for flag in self.allCompartmentFlags.union(self.allNodeFlags):
+                if(flag not in self.flag_counts):
+                    self.flag_counts[flag] = np.zeros_like(self.counts[self.default_state])
                 flag_count = len(self.get_individuals_by_flag(flag))
                 self.flag_counts[flag][self.tidx] = flag_count
-        
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Store system states
         if(self.store_Xseries):
             self.Xseries[self.tidx,:] = self.X.T
-
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Store system states for specified subgroups
         if(self.nodeGroupData):
@@ -729,8 +771,10 @@ class CompartmentNetworkModel():
             self.results.update({ 'total_pct_'+str(compartment):    self.results['total_count_'+str(compartment)]/self.pop_size,
                                   'peak_pct_'+str(compartment):     self.results['peak_count_'+str(compartment)]/self.pop_size})
         for flag in self.allCompartmentFlags.union(self.allNodeFlags):
-            self.results.update({ 'total_count_'+str(flag):         int(self.get_count_by_flag(flag)) })
-            self.results.update({ 'total_pct_'+str(flag):           self.results['total_count_'+str(flag)]/self.pop_size })
+            self.results.update({ 'total_count_'+str(flag):         int(self.get_count_by_flag(flag)),
+                                  'peak_count_'+str(flag):          int(np.max(self.flag_counts[flag])) })
+            self.results.update({ 'total_pct_'+str(flag):           self.results['total_count_'+str(flag)]/self.pop_size,
+                                  'peak_pct_'+str(flag):            self.results['peak_count_'+str(flag)]/self.pop_size})
 
     
     ########################################################
@@ -789,13 +833,13 @@ class CompartmentNetworkModel():
         rands = [poststates[np.random.choice(len(poststates), p=probs[:,i])] for i in range(self.pop_size)]
         #----------------------------------------
         for poststate in transn_dict:
-            transn_dict[poststate]["active_path"] = np.array([1 if rands[i]==poststate else 0 for i in range(self.pop_size)]).reshape((self.pop_size,1))
+            transn_dict[poststate]["path_taken"] = np.array([1 if rands[i]==poststate else 0 for i in range(self.pop_size)]).reshape((self.pop_size,1))
 
 
     ########################################################
 
 
-    def process_network_transmissibility(self, transm_dict, network):
+    def process_network_transmissibility(self, transm_dict, network_name):
         #----------------------------------------
         # Process local transmissibility parameters for each network:
         #----------------------------------------
@@ -803,10 +847,10 @@ class CompartmentNetworkModel():
             # Use transmissibility values provided for this network if given,
             # else use transmissibility values provided under generic 'local' key.
             # (If neither of these are provided, defaults to 0 transmissibility.)
-            local_transm_vals = transm_dict[network] if network in transm_dict else transm_dict['local']
+            local_transm_vals = transm_dict[network_name] if network_name in transm_dict else transm_dict['local']
             #----------------------------------------
-            # Convert transmissibility value(s) to np array:
-            local_transm_vals = utils.param_as_array(local_transm_vals, (self.pop_size,1))
+            # Convert omega value(s) to np array if not already np array or sparse matrix:
+            local_transm_vals = utils.param_as_array(local_transm_vals, (self.pop_size,1)) if not isinstance(local_transm_vals, (np.ndarray, scipy.sparse.csr_matrix, scipy.sparse.csc_matrix)) else local_transm_vals
             #----------------------------------------
             # Generate matrix of pairwise transmissibility values:
             if(local_transm_vals.ndim == 2 and local_transm_vals.shape[0] == self.pop_size and local_transm_vals.shape[1] == self.pop_size):
@@ -814,11 +858,11 @@ class CompartmentNetworkModel():
             elif((local_transm_vals.ndim == 1 and local_transm_vals.shape[0] == self.pop_size) or (local_transm_vals.ndim == 2 and (local_transm_vals.shape[0] == self.pop_size or local_transm_vals.shape[1] == self.pop_size))):
                 local_transm_vals = local_transm_vals.reshape((self.pop_size,1))
                 # Pre-multiply beta values by the adjacency matrix ("transmission weight connections")
-                A_beta_pairwise_byInfected = scipy.sparse.csr_matrix.multiply(self.networks[network]["adj_matrix"], local_transm_vals.T).tocsr()
-                A_beta_pairwise_byInfectee = scipy.sparse.csr_matrix.multiply(self.networks[network]["adj_matrix"], local_transm_vals).tocsr()    
+                A_beta_pairwise_byInfected = scipy.sparse.csr_matrix.multiply(self.networks[network_name]["adj_matrix"], local_transm_vals.T).tocsr()
+                A_beta_pairwise_byInfectee = scipy.sparse.csr_matrix.multiply(self.networks[network_name]["adj_matrix"], local_transm_vals).tocsr()    
                 #------------------------------
                 # Compute the effective pairwise beta values as a function of the infected/infectee pair:
-                if(transm_dict['pairwise_mode'].lower() == 'infected'):
+                if(transm_dict['pairwise_mode'].lower() == 'infected' or transm_dict['pairwise_mode'] is None):
                     net_transm_mat = A_beta_pairwise_byInfected
                 elif(transm_dict['pairwise_mode'].lower() == 'infectee'):
                     net_transm_mat = A_beta_pairwise_byInfectee
@@ -826,7 +870,7 @@ class CompartmentNetworkModel():
                     net_transm_mat = scipy.sparse.csr_matrix.minimum(A_beta_pairwise_byInfected, A_beta_pairwise_byInfectee)
                 elif(transm_dict['pairwise_mode'].lower() == 'max'):
                     net_transm_mat = scipy.sparse.csr_matrix.maximum(A_beta_pairwise_byInfected, A_beta_pairwise_byInfectee)
-                elif(transm_dict['pairwise_mode'].lower() == 'mean' or transm_dict['pairwise_mode'] is None):
+                elif(transm_dict['pairwise_mode'].lower() == 'mean'):
                     net_transm_mat = (A_beta_pairwise_byInfected + A_beta_pairwise_byInfectee)/2
                 else:
                     raise BaseException("Unrecognized pairwise_mode value (support for 'infected', 'infectee', 'min', 'max', and 'mean').")
@@ -834,15 +878,16 @@ class CompartmentNetworkModel():
                 raise BaseException("Invalid data type/shape for transmissibility values.")
             #----------------------------------------
             # Store the pairwise transmissibility matrix in the compartments dict
-            transm_dict[network] = net_transm_mat
+            transm_dict[network_name] = net_transm_mat
         except KeyError:
-            # print("Transmissibility values not given for \""+str(G)+"\" network -- defaulting to 0.")
-            transm_dict[network] = scipy.sparse.csr_matrix(np.zeros(shape=(self.pop_size, self.pop_size)))
+            # print("Transmissibility values not given for", network_name, "-- defaulting to 0.")
+            transm_dict[network_name] = scipy.sparse.csr_matrix(np.zeros(shape=(self.pop_size, self.pop_size)))
+
 
     ########################################################
 
 
-    def process_network_transm_offsets(self, transm_dict, network):
+    def process_network_transm_offsets(self, transm_dict, network_name):
         #----------------------------------------
         # Process frequency-dependent transmission offset factors for each network:
         #----------------------------------------
@@ -850,14 +895,14 @@ class CompartmentNetworkModel():
             transm_dict['offsets'] = {}
         #----------------------------------------
         try:
-            omega_vals = transm_dict['offsets'][network]
+            omega_vals = transm_dict['offsets'][network_name]
             #----------------------------------------
-            # Convert omega value(s) to np array:
-            omega_vals = utils.param_as_array(omega_vals, (self.pop_size,1))
+            # Convert omega value(s) to np array if not already np array or sparse matrix:
+            omega_vals = utils.param_as_array(omega_vals, (self.pop_size,1)) if not isinstance(omega_vals, (np.ndarray, scipy.sparse.csr_matrix, scipy.sparse.csc_matrix)) else omega_vals
             #----------------------------------------
             # Store 2d np matrix of pairwise omega values:
             if(omega_vals.ndim == 2 and omega_vals.shape[0] == self.pop_size and omega_vals.shape[1] == self.pop_size):
-                nested_dic[G+"_omega"] = omega_vals
+                transm_dict['offsets'][network_name] = omega_vals
             else:
                 raise BaseException("Explicit omega values should be specified as an NxN 2d array. Else leave unspecified and omega values will be automatically calculated according to local_transm_offset_mode.")
         except KeyError:
@@ -865,20 +910,20 @@ class CompartmentNetworkModel():
             # Automatically generate omega matrix according to local_transm_offset_mode:
             if(transm_dict['local_transm_offset_mode'].lower() == 'pairwise_log'):
                 with np.errstate(divide='ignore'): # ignore log(0) warning, then convert log(0) = -inf -> 0.0
-                    omega = np.log(np.maximum(self.networks[network]["degree"],2))/np.log(np.mean(self.networks[network]["degree"])) 
+                    omega = np.log(np.maximum(self.networks[network_name]["degree"],2))/np.log(np.mean(self.networks[network_name]["degree"])) 
                     omega[np.isneginf(omega)] = 0.0
             elif(transm_dict['local_transm_offset_mode'].lower() == 'pairwise_linear'):
-                omega = np.maximum(self.networks[network]["degree"],2)/np.mean(self.networks[network]["degree"])
+                omega = np.maximum(self.networks[network_name]["degree"],2)/np.mean(self.networks[network_name]["degree"])
             elif(transm_dict['local_transm_offset_mode'].lower() == 'none'):
                 omega = np.ones(shape=(self.pop_size, self.pop_size))
             else:
                 raise BaseException("Unrecognized local_transm_offset_mode value (support for 'pairwise_log', 'pairwise_linear', and 'none').")
-            omega_pairwise_byInfected = scipy.sparse.csr_matrix.multiply(self.networks[network]["adj_matrix"], omega.T).tocsr()
-            omega_pairwise_byInfectee = scipy.sparse.csr_matrix.multiply(self.networks[network]["adj_matrix"], omega).tocsr()
+            omega_pairwise_byInfected = scipy.sparse.csr_matrix.multiply(self.networks[network_name]["adj_matrix"], omega.T).tocsr()
+            omega_pairwise_byInfectee = scipy.sparse.csr_matrix.multiply(self.networks[network_name]["adj_matrix"], omega).tocsr()
             omega_mat = (omega_pairwise_byInfected + omega_pairwise_byInfectee)/2
             #----------------------------------------
             # Store the pairwise omega matrix in the compartments dict
-            transm_dict['offsets'][network] = omega_mat
+            transm_dict['offsets'][network_name] = omega_mat
 
 
     ########################################################
@@ -892,9 +937,6 @@ class CompartmentNetworkModel():
         initCountTotal = 0
         for c, compartment in enumerate(self.compartments):
             comp_params = self.compartments[compartment]
-            #----------------------------------------
-            # Instantiate data series for counts of nodes in each compartment:
-            self.counts[compartment] = np.zeros(self.pop_size*min(len(self.compartments), 10))
             #----------------------------------------
             # Set initial counts for each compartment:
             if(comp_params['initial_prevalence'] > 0):
@@ -933,8 +975,9 @@ class CompartmentNetworkModel():
         self.nodeCaseIDs = [None]*self.pop_size
         # Set the lineage IDs of all initially infected nodes to '0' (maybe rethink later)
         for i, initInfectedNode in enumerate(self.get_individuals_by_flag(['infected'])):
-            self.add_case_to_lineage(initInfectedNode, parent=None)
-            self.add_case_log(infectee_node=initInfectedNode, infector_node=None, infection_transition={'from':self.default_state, 'to':self.get_node_compartment(exposedNode), 'type':'initialization'})
+            if(self.track_case_info):
+                self.add_case_to_lineage(initInfectedNode, parent=None)
+                self.add_case_log(infectee_node=initInfectedNode, infector_node=None, infection_transition={'from':self.default_state, 'to':self.get_node_compartment(exposedNode), 'type':'initialization'})
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Determine the iniital counts for each flag
@@ -958,18 +1001,21 @@ class CompartmentNetworkModel():
     ########################################################
 
 
-    def set_state(self, node, state):
+    def set_state(self, node, state, update_data_series=True):
         # Using this function instead of setting self.X directly ensures that the data series are updated whenever a state changes.
         nodes = utils.treat_as_list(node)
         for i in nodes:
             if(state in self.compartments):
                 self.X[i] = self.stateID[state]
+                self.state_timer[i] = 0.0
             elif(state in self.stateID):
                 self.X[i] = state
+                self.state_timer[i] = 0.0
             else:
                 print("Unrecognized state, "+str(state)+". No state update performed.")
                 return
-        self.update_data_series()
+        if(update_data_series):
+            self.update_data_series() 
 
 
     ########################################################
@@ -1052,9 +1098,9 @@ class CompartmentNetworkModel():
             for infectiousState in infectiousStates:
                 susc_dict = self.compartments[compartment]['susceptibilities']
                 try:
-                    susc_dict[infectiousState]['susceptibility'] = susceptibility
+                    susc_dict[infectiousState]['susceptibility'] = copy.deepcopy(susceptibility)
                 except KeyError:
-                    susc_dict[infectiousState] = {'susceptibility': susceptibility}
+                    susc_dict[infectiousState] = {'susceptibility': copy.deepcopy(susceptibility)}
 
 
     ########################################################
@@ -1073,16 +1119,16 @@ class CompartmentNetworkModel():
                     if(context in self.networks):
                         # Transmissibility is being set for a particular network context,
                         # update the transmissibility data structures for that network.
-                        transm_dict[context] = transmissibility
+                        transm_dict[context] = copy.deepcopy(transmissibility)
                         self.process_network_transmissibility(transm_dict, context)
                         # Re-calculate Infectivity Matrices for updated compartments/networks
                         self.infectivity_mat[compartment][context] = scipy.sparse.csr_matrix.multiply(transm_dict[context], transm_dict['offsets'][context])
                     elif(context == 'local'):
                         # Transmissibility is being set for the generic 'local' context:
                         # Use these values and update transmissibility data structures for *all* networks.
-                        transm_dict['local'] = transmissibility
+                        transm_dict['local'] = copy.deepcopy(transmissibility)
                         for network in self.networks:
-                            transm_dict[network] = transmissibility
+                            transm_dict[network] = copy.deepcopy(transmissibility)
                             self.process_network_transmissibility(transm_dict, network)
                             # Re-calculate Infectivity Matrices for updated compartments/networks
                             self.infectivity_mat[compartment][network] = scipy.sparse.csr_matrix.multiply(transm_dict[network], transm_dict['offsets'][network])
@@ -1157,7 +1203,7 @@ class CompartmentNetworkModel():
             if(isolation == True):
                 # self.calc_infectious_time(node) <- TODO handle this?
                 self.isolation[node] = 1
-            elif(isolation == False):
+            elif(isolation==False):
                 self.isolation[node] = 0
             # Reset the isolation timer:
             self.isolation_timer[node] = 0
@@ -1201,6 +1247,12 @@ class CompartmentNetworkModel():
         return compartment_counts_ if len(compartment_counts_)>1 else np.sum([compartment_counts_[c] for c in compartment_counts_]) if len(compartment_counts_)>0 else None
 
 
+    ########################################################
+
+
+    def get_compartment_by_state_id(self, state_id):
+        return next((comp_name for comp_name, id_num in self.stateID.items() if id_num==state_id), None)
+
 
     ########################################################
     ########################################################
@@ -1213,7 +1265,7 @@ class CompartmentNetworkModel():
             for flag in flags:
                 self.compartments[compartment]['flags'].append(flag)
                 self.allCompartmentFlags.add(flag)
-                if(flag not in self.flag_counts):
+                if(self.track_flag_counts and flag not in self.flag_counts):
                     self.flag_counts[flag] = np.zeros_like(self.counts[compartment])
                     self.update_data_series()
 
@@ -1236,9 +1288,12 @@ class CompartmentNetworkModel():
             for flag in flags:
                 self.node_flags[node].append(flag)
                 self.allNodeFlags.add(flag)
-                if(flag not in self.flag_counts):
+                if(self.track_flag_counts and flag not in self.flag_counts):
                     self.flag_counts[flag] = np.zeros_like(self.counts[list(self.counts.keys())[0]])
                     self.update_data_series()
+
+
+    ########################################################
 
 
     def remove_individual_flag(self, node, flag):
@@ -1264,33 +1319,27 @@ class CompartmentNetworkModel():
     ########################################################
 
 
-    def get_individuals_by_flag(self, flag, has_flag=True):
+    def get_individuals_by_flag(self, flag, has_flag=True, combine='any'):
         flags = utils.treat_as_list(flag)
-        flagged_compartments = self.get_compartments_by_flag(flags)
-        node_flagged_individuals = set()
-        comp_flagged_individuals = set()
-        for i in range(self.pop_size):
-            # Check if individual i has this node flag:
-            if(any([flag in self.node_flags[i] for flag in flags]) == has_flag):
-                node_flagged_individuals.add(i)
-            # Check if individual i is in a compartment with this flag:
-            if(any([ self.X[i]==self.stateID[c] for c in flagged_compartments ]) == has_flag):
-                comp_flagged_individuals.add(i)
-        if(has_flag):
-            return list(node_flagged_individuals | comp_flagged_individuals)
-        else:
-            return list(node_flagged_individuals & comp_flagged_individuals)
+        flagged_individuals_sets = []
+        for flag in flags:
+            flagged_individuals = set()
+            flagged_compartments = self.get_compartments_by_flag(flag)
+            for i in range(self.pop_size):
+                if( ((flag in self.node_flags[i]) or any([ self.X[i][0]==self.stateID[c] for c in flagged_compartments ])) == has_flag ):
+                    flagged_individuals.add(i)
+            flagged_individuals_sets.append(flagged_individuals)
+        if((combine=='any' and has_flag) or (combine=='all' and not has_flag)):
+            return list( set().union(*flagged_individuals_sets) )
+        else: 
+            return list( set(range(self.pop_size)).intersection(*flagged_individuals_sets) )
 
 
     ########################################################
 
 
-    def get_count_by_flag(self, flag, has_flag=True):
-        flags = utils.treat_as_list(flag)
-        flag_counts_ = {}
-        for flag in flags:
-            flag_counts_[flag] = len(self.get_individuals_by_flag(flag, has_flag))
-        return flag_counts_ if len(flag_counts_)>1 else np.sum([flag_counts_[f] for f in flag_counts_]) if len(flag_counts_)>0 else None
+    def get_count_by_flag(self, flag, has_flag=True, combine='any'):
+        return len(self.get_individuals_by_flag(flag, has_flag, combine))
 
 
     ########################################################
@@ -1307,56 +1356,32 @@ class CompartmentNetworkModel():
             for compartment in compartments:
                 for infectiousState in infectiousStates:
                     if(infectiousState in self.compartments[compartment]['susceptibilities']):
-                        exposure_susceptibilities.append({'susc_state': compartment, 'inf_state': infectiousState, 
+                        exposure_susceptibilities.append({'susc_state': compartment, 
+                                                          'inf_state': infectiousState, 
                                                           'susceptibilities': self.compartments[compartment]['susceptibilities'][infectiousState]['susceptibility'].flatten(),
                                                           'mean_susceptibility': np.mean(self.compartments[compartment]['susceptibilities'][infectiousState]['susceptibility']),
+                                                          'susc_state_prevalence': self.get_count_by_compartment(compartment),
                                                           })
-            exposureType   = np.random.choice(exposure_susceptibilities, p=[d['mean_susceptibility'] for d in exposure_susceptibilities]/np.sum([d['mean_susceptibility'] for d in exposure_susceptibilities]))
+            exposureType   = np.random.choice(exposure_susceptibilities, p=[d['mean_susceptibility']*d['susc_state_prevalence'] for d in exposure_susceptibilities]/np.sum([d['mean_susceptibility']*d['susc_state_prevalence'] for d in exposure_susceptibilities]))
             exposableNodes = [i for i in range(self.pop_size) if self.X[i]==self.stateID[exposureType['susc_state']]]
             if(len(exposableNodes) > 0):
                 exposedNode    = np.random.choice(exposableNodes, p=exposureType['susceptibilities'][exposableNodes]/np.sum(exposureType['susceptibilities'][exposableNodes]))
                 exposedNodes.append(exposedNode)
                 #--------------------
                 exposureTransitions = self.compartments[exposureType['susc_state']]['susceptibilities'][exposureType['inf_state']]['transitions']
-                exposureTransitionsActiveStatuses = [exposureTransitions[dest]['active_path'].flatten()[exposedNode] for dest in exposureTransitions]
+                exposureTransitionsActiveStatuses = [exposureTransitions[dest]['path_taken'].flatten()[exposedNode] for dest in exposureTransitions]
                 destState = np.random.choice(list(exposureTransitions.keys()), p=exposureTransitionsActiveStatuses/np.sum(exposureTransitionsActiveStatuses))
                 #--------------------
-                self.add_case_to_lineage(exposedNode, parent=None)
+                if(self.track_case_info):
+                    self.add_case_to_lineage(exposedNode, parent=None)
+                    self.add_case_log(infectee_node=exposedNode, infector_node=None, infection_transition={'from':self.get_node_compartment(exposedNode), 'to':destState, 'type':'introduction'})
                 #--------------------
-                self.add_case_log(infectee_node=exposedNode, infector_node=None, infection_transition={'from':self.get_node_compartment(exposedNode), 'to':destState, 'type':'introduction'})
-                #--------------------
-                self.set_state(exposedNode, destState)
+                self.set_state(exposedNode, destState, update_data_series=False) # too slow to update data series after every node state update, will updata data series after loop
+            self.update_data_series()
         return exposedNodes
 
 
     ########################################################
-
-
-    def test(self, node, test_type):
-        node_list_provided = isinstance(node, (list, np.ndarray))
-        nodes = list(range(self.pop_size)) if node=='all' else [node] if not node_list_provided else node
-        results = []
-        for node in nodes:
-            node_compartment = self.get_node_compartment(node)
-            node_daysInCompartment = int(self.state_timer[node])
-            # print("Test node", node, "in state", node_compartment, "day", node_daysInCompartment)
-            #----------------------------------------
-            # Perform the test on the selected individuals:
-            #----------------------------------------
-            sensitivities_timeCourse = self.test_params[node_compartment][test_type]['sensitivity']
-            specificities_timeCourse = self.test_params[node_compartment][test_type]['specificity']
-            sensitivity = sensitivities_timeCourse[node_daysInCompartment if node_daysInCompartment<len(sensitivities_timeCourse) else -1]
-            specificity = specificities_timeCourse[node_daysInCompartment if node_daysInCompartment<len(specificities_timeCourse) else -1]
-            if(sensitivity > 0.0): # individual is in a state where the test can return a true positive
-                positive_result = (np.random.rand() < sensitivity)
-            elif(specificity < 1.0): # individual is in a state where the test can return a false positive
-                positive_result = (np.random.rand() > specificity)
-            else:
-                positive_result = False
-            results.append(positive_result)
-        return results if node_list_provided else results[0] if len(results)>0 else None
-
-
     ########################################################
 
 
@@ -1523,7 +1548,6 @@ class CompartmentNetworkModel():
 
 
     ########################################################
-    ########################################################
 
 
     def get_results_dataframe(self):
@@ -1537,6 +1561,212 @@ class CompartmentNetworkModel():
     def get_case_log_dataframe(self):
         import pandas as pd
         return pd.DataFrame(self.caseLogs)
+
+
+    ########################################################
+    ########################################################
+
+
+    def update_test_parameters(self, new_test_params='default', prevalence_flags=['infected']):
+        if(isinstance(new_test_params, str) and '.json' in new_test_params):
+            new_test_params = utils.load_config(new_test_params)
+            # with open(new_test_params) as new_test_params_file:
+            #     new_test_params = json.load(new_test_params_file)
+        elif(isinstance(new_test_params, dict)):
+            pass
+        elif(new_test_params == 'default'):
+            # If no test params are given, default to a test that is 100% sensitive/specific to all compartments with the 'infected' flag:
+            new_test_params = {}
+            infectedCompartments = self.get_compartments_by_flag(prevalence_flags)
+            for compartment in self.compartments:
+                new_test_params.update({compartment: {"default_test": {"sensitivity": 1.0 if compartment in infectedCompartments else 0.0, "specificity": 1.0}}})
+        elif(new_test_params is None):
+            return
+        else:
+            raise BaseException("Specify test parameters with a dictionary or JSON file.")
+        #----------------------------------------
+        test_types = set()
+        for compartment, comp_params in new_test_params.items():
+            for test_type, testtype_params in comp_params.items():
+                test_types.add(test_type)
+                # Process sensitivity values for the current compartment and test type:
+                try: # convert sensitivity(s) provided to a list of values (will be interpreted as time course) 
+                    testtype_params['sensitivity'] = [testtype_params['sensitivity']] if not (isinstance(testtype_params['sensitivity'], (list, np.ndarray))) else testtype_params['sensitivity']
+                except KeyError:
+                    testtype_params['sensitivity'] = [0.0]
+                # Process sensitivity values for the current compartment and test type:
+                try: # convert sensitivity(s) provided to a list of values (will be interpreted as time course) 
+                    testtype_params['specificity'] = [testtype_params['specificity']] if not (isinstance(testtype_params['specificity'], (list, np.ndarray))) else testtype_params['specificity']
+                except KeyError:
+                    testtype_params['specificity'] = [0.0]
+        self.test_params.update(new_test_params)
+        self.test_types.update(test_types)
+        # return self.test_params, self.test_types
+        
+
+    ########################################################
+
+
+    def test(self, node, test_type):
+        node_list_provided = isinstance(node, (list, np.ndarray))
+        nodes = list(range(self.pop_size)) if node=='all' else [node] if not node_list_provided else node
+        results  = []
+        trueness = []
+        for node in nodes:
+            # print("tttttttttt")
+            node_compartment = self.get_node_compartment(node)
+            node_daysInCompartment = int(self.state_timer[node])
+            # print("Test node", node, "in state", node_compartment, "day", node_daysInCompartment)
+            #----------------------------------------
+            # Perform the test on the selected individuals:
+            #----------------------------------------
+            sensitivities_timeCourse = self.test_params[node_compartment][test_type]['sensitivity']
+            specificities_timeCourse = self.test_params[node_compartment][test_type]['specificity']
+            sensitivity = sensitivities_timeCourse[node_daysInCompartment if node_daysInCompartment<len(sensitivities_timeCourse) else -1]
+            specificity = specificities_timeCourse[node_daysInCompartment if node_daysInCompartment<len(specificities_timeCourse) else -1]
+            if(sensitivity > 0.0): # individual is in a state where the test can return a true positive
+                result_positive = (np.random.rand() < sensitivity)
+                result_trueness = (result_positive==True) # result should be positive if sensitivity > 0
+                # print(sensitivity, "> 0.0:")
+            elif(specificity < 1.0): # individual is in a state where the test can return a false positive
+                result_positive = (np.random.rand() > specificity)
+                result_trueness = (result_positive==False) # result should be negative if sensitivity = 0
+                # print(sensitivity, "= 0.0,", specificity, "< 1.0")
+            else:
+                result_positive = False
+                result_trueness = (result_positive==False) # result should be negative if sensitivity = 0
+                # print(sensitivity, "= 0.0,", specificity, "= 1.0")
+            results.append(result_positive)
+            trueness.append(result_trueness)
+            # print("\t", node_compartment, ('*' if not any(substr in node_compartment for substr in ['S', 'R']) else ' '), result_positive, result_trueness, sensitivity, specificity)
+        return (results, trueness) if node_list_provided else (results[0], trueness[0]) if len(results)>0 else (None, None)
+
+
+    ########################################################
+    
+
+    def add_vaccine(self, name, susc_effectiveness, transm_effectiveness, series=None, compartment_name_suffix='v', flag_vaccinated=True, flag_series=True, flag_name=True):
+        suffix_found   = False
+        suffix_attempt = 0
+        suffix = compartment_name_suffix
+        while(not suffix_found):
+            if(not any(suffix in comp_name for comp_name in self.compartments.keys())):
+                suffix_found = True
+            else:
+                suffix_attempt += 1
+                suffix = str(compartment_name_suffix)+str(suffix_attempt+1)
+        # print(suffix)
+        #----------------------------------------
+        # Add this vaccine to the given vaccine series, 
+        # creating a new vaccine series if an existing one is not provided:
+        #----------------------------------------
+        if(series in self.vaccine_series):
+            self.vaccine_series[series].append( {'vaccine_name': name, 'susc_effectiveness': susc_effectiveness, 'transm_effectiveness': transm_effectiveness} )
+        else:
+            series = series if series is not None else name
+            self.vaccine_series[series] = [{'vaccine_name': name, 'susc_effectiveness': susc_effectiveness, 'transm_effectiveness': transm_effectiveness} ]
+        numberInSeries = len(self.vaccine_series[series])
+        #----------------------------------------
+        # Create new compartments for vaccinated states:
+        #----------------------------------------
+        vax_compartments = {}
+        for comp_name, comp_dict in self.compartments.items():
+            if('vaccinated' not in comp_dict or comp_dict['vaccinated']==False):
+                # This is an unvaccinated state. Create a new, vaccinated version of it.
+                vaxxed_comp_name = comp_name+suffix
+                # Mark/Flag this compartment as unvaccinated for future reference:
+                comp_dict['vaccinated'] = False
+                if(flag_vaccinated and 'unvaccinated' not in comp_dict['flags']):
+                    self.add_compartment_flag(comp_name, 'unvaccinated')
+                # Store information about the vaccine series and related vaccination transition if not already present:
+                if('vaccine_series' not in comp_dict):
+                    comp_dict['vaccine_series'] = {series: {'vaccine_name': None, 'num_in_series': 0, 'unvaccinated_state': comp_name, 'vaccination_transition': vaxxed_comp_name}}
+                # Add the vaccinated versions of infectious states to the unvaccinated compartment's list of susceptibilities:
+                new_susceptibilities = {}
+                for infectiousState, susc_params in comp_dict['susceptibilities'].items():
+                    if('vaccinated' not in self.compartments[infectiousState] or self.compartments[infectiousState]['vaccinated']==False):
+                        new_susceptibilities.update({infectiousState+suffix: copy.deepcopy(susc_params)})
+                comp_dict['susceptibilities'].update(new_susceptibilities)
+                # Copy the compartment params dict of the unvaccinated compartment to be updated for the vaccinated version below:
+                vaxxed_comp_dict = copy.deepcopy(comp_dict)
+                # Mark/Flag the new compartment as being vaccinated:
+                vaxxed_comp_dict['vaccinated'] = True 
+                vaxxed_comp_dict['flags'] = [flag for flag in vaxxed_comp_dict['flags'] if flag != 'unvaccinated']
+                if(flag_vaccinated): vaxxed_comp_dict['flags'].append('vaccinated')
+                if(flag_series):     vaxxed_comp_dict['flags'].append(series)
+                if(flag_name):       vaxxed_comp_dict['flags'].append(name)
+                # Update the vaccine series / transition info for the new vaccinated compartment 
+                vaxxed_comp_dict['vaccine_series'][series] = {'vaccine_name': name, 'num_in_series': numberInSeries, 'unvaccinated_state': comp_name, 'vaccination_transition': None}
+                # Make sure the new compartment doesn't inherit a default state flag:
+                vaxxed_comp_dict['default_state']  = False 
+                # Update susceptibility values and susceptibility-related transmission transitions for the vaccinated state:
+                for infectiousState, susc_dict in vaxxed_comp_dict['susceptibilities'].items():
+                    # Calculate susceptibilities for the vaccinated compartment based on the vaccine's effectiveness for susceptibility:
+                    susc_dict['susceptibility'] *= 1 - susc_effectiveness
+                    # Convert the transmission transition destination states to the vaccinated versions of those states:
+                    new_susc_transitions = copy.deepcopy(susc_dict['transitions'])
+                    for destState, transition_params in susc_dict['transitions'].items():
+                        if('vaccinated' not in self.compartments[destState] or self.compartments[destState]['vaccinated']==False):
+                            new_susc_transitions[destState+suffix] = new_susc_transitions.pop(destState)
+                    susc_dict['transitions'] = new_susc_transitions
+                # Calculate transmissibilities for the vaccinated compartment based on the vaccine's effectiveness for transmissibility:
+                for transm_context, transm_vals in comp_dict['transmissibilities'].items():
+                    if(transm_context in ['pairwise_mode', 'infected', 'local_transm_offset_mode', 'offsets']):
+                        pass
+                    else:
+                        vaxxed_comp_dict['transmissibilities'][transm_context] *= 1 - transm_effectiveness
+                # Convert the temporal transition destination states to the vaccinated versions of those states:
+                new_transitions = copy.deepcopy(vaxxed_comp_dict['transitions'])
+                for destState, transition_params in vaxxed_comp_dict['transitions'].items():
+                    if('vaccinated' not in self.compartments[destState] or self.compartments[destState]['vaccinated']==False):
+                        new_transitions[destState+suffix] = new_transitions.pop(destState)
+                vaxxed_comp_dict['transitions'] = new_transitions
+                # Add the parameterized vaccinated compartment to a dict of new compartments:
+                vax_compartments.update({vaxxed_comp_name: vaxxed_comp_dict})
+                # Copy the test parameters for the new vaccinated state from the unvaccinated state:
+                if(comp_name in self.test_params):
+                    self.test_params.update({vaxxed_comp_name: copy.deepcopy(self.test_params[comp_name])})
+            #-----
+            elif(comp_dict['vaccine_series'][series]['num_in_series'] == numberInSeries-1):
+                # This comp_dict is for a state that is vaccinated with the vaccine that comes before the currently-being-added vaccine in the series:
+                # Update the vaccine transition info for the prev vaccinated compartment such that it transitions to the new vaccinated compartment:
+                print(comp_name, numberInSeries, "-1", numberInSeries-1, comp_dict['vaccine_series'][series])
+                comp_dict['vaccine_series'][series]['vaccination_transition'] = comp_dict['vaccine_series'][series]['unvaccinated_state']+suffix
+                print(comp_name, numberInSeries, "-1", numberInSeries-1, comp_dict['vaccine_series'][series])
+            #-----
+            else:
+                # This is another vaccinated state. Only create new versions of unvaccinated states.
+                pass
+        #----------------------------------------
+        self.update_compartments(vax_compartments)
+        self.update_data_series()
+
+
+    ########################################################
+
+
+    def vaccinate(self, node, vaccine_series=None):
+        nodes = list(range(self.pop_size)) if isinstance(node, str) and node=='all' else utils.treat_as_list(node)
+        if(len(self.vaccine_series)==0):
+            print("No vaccines have been added to the model, so the effects of vaccination are unspecified.")
+            exit()
+        elif(vaccine_series==None):
+            if(len(self.vaccine_series)==1):
+                vaccine_series = list(self.vaccine_series)[0]
+            else:
+                print("More than one vaccine series have been added to the model, so the series must be specified when calling vaccinate().")
+                exit()
+        elif(vaccine_series not in self.vaccine_series):
+            print("The vaccine series specified when calling vaccinate() is not recognized (i.e., has not been previously added to the model).")
+            exit()
+        for node in nodes:
+            print("vaccinating node", node)
+            vaxxedDestState = self.compartments[self.get_compartment_by_state_id(self.X[node])]['vaccine_series'][vaccine_series]['vaccination_transition']
+            self.set_state(node, vaxxedDestState, update_data_series=False) # too slow to update data series after every node state update, will updata data series after loop
+        self.update_data_series()
+
+
+
 
 
 

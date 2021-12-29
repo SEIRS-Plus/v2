@@ -10,12 +10,11 @@ from seirsplus.scenarios import *
 # ------------------------
 
 # Set population size:
-N = 2
+N = 500
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Generate contact networks:
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# networks, clusters, households, age_groups, node_labels = generate_community_networks(N)
 MEAN_DEGREE = 10
 MEAN_CLUSTER_SIZE = 10
 CLUSTER_INTERCONNECTEDNESS = 0.25
@@ -38,17 +37,55 @@ network, network_info = generate_workplace_contact_network(
         "weighted": False,
     },
 )
-networks = {"network": network}
+networks = {"workplace": network}
+
+print(param_as_bool_array(0.7, shape=(1,N)))
+exit()
+
+
+# apply_social_distancing(network, 1.0)
+
+
+# import networkx
+# networkx.draw(network, pos=networkx.spring_layout(network, k=5/np.sqrt(N), weight='layout_weight'), 
+#     node_size=15, linewidths=0.5, alpha=0.9,
+#      edge_color=(0.8, 0.8, 0.8,0.4), edgecolors='#19143e', width=0.5)
+# plt.show()
+
+# apply_social_distancing(network)
+
+
+
+# exit()
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Instantiate the model:
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-model = SARSCoV2NetworkModel(networks=networks, mixedness=0.2)
+model = SARSCoV2NetworkModel_reinfection(networks=networks, 
+                                            mixedness=0.2,
+                                            susceptibility_reinfection=0.1)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Specify other model configurations:
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # model.set_network_activity('household', active_isolation=True)
+# model.update_test_parameters("tests_SARSCoV2_reinfection.json")
+# print("add dose1")
+# model.add_vaccine(name='pfizer_dose1', susc_effectiveness=0.85, transm_effectiveness=0.5, series='covid')
+# print("add dose2")
+# model.add_vaccine(name='pfizer_dose2', susc_effectiveness=0.95, transm_effectiveness=0.5, series='covid')
+# print("add booster")
+# model.add_vaccine(name='pfizer_booster', susc_effectiveness=0.95, transm_effectiveness=0.5, series='covid')
+
+# # print(model.compartments)
+# for comp, comp_dict in model.compartments.items():
+#     print(comp, "\tvaccinated", comp_dict['vaccinated'], "\tvaccine_series", comp_dict['vaccine_series'], "\tflags", comp_dict['flags'])
+# print(model.flag_counts.keys())
+
+# model.vaccinate(node=np.random.choice(range(N), size=int(N/3), replace=False), vaccine_series='covid')
+
+
+# exit()
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Set model metadata:
@@ -61,11 +98,6 @@ model = SARSCoV2NetworkModel(networks=networks, mixedness=0.2)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 model.introduce_random_exposures((1/N)*N)
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-model.add_vaccine(name='pfizer_dose1', susc_effectiveness=0.9, transm_effectiveness=0.5, series='covid', compartment_flag='vaccinated')
-
-print(model.compartments)
-exit()
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Run the model scenario:
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -99,20 +131,20 @@ run_interventions_scenario(model, T=100, max_dt=0.1, default_dt=0.1,
                                 isolation_exclude_afterNumTests=None,       
                                 isolation_exclude_afterNumVaccineDoses=None,
                                 # Testing params:
-                                test_params=load_config("tests_SARSCoV2_default.json"), 
+                                test_params=load_config("tests_SARSCoV2_reinfection.json"), 
                                 test_type_proactive='antigen',
                                 test_type_onset='pcr',
                                 test_type_traced='pcr', 
                                 test_result_delay={'pcr': 1, 'antigen': 0},
                                 proactive_testing_cadence='weekly',
                                 testing_capacity_max=1.0,
-                                testing_capacity_proactive=0.1,
+                                testing_capacity_proactive=1.0,
                                 testing_delay_proactive=0,
                                 testing_delay_onset=1,
                                 testing_delay_onset_groupmate=1,
                                 testing_delay_positive_groupmate=1,
                                 testing_delay_traced=1,                                    
-                                testing_compliance_proactive=True,
+                                testing_compliance_proactive=np.random.binomial(1, p=0.7, size=500),
                                 testing_compliance_onset=True, 
                                 testing_compliance_onset_groupmate=False,
                                 testing_compliance_positive_groupmate=False,

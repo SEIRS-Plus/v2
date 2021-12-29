@@ -9,7 +9,7 @@ from seirsplus.utils import *
 
 
 
-def generate_workplace_contact_network(num_cohorts=1, num_nodes_per_cohort=100, num_teams_per_cohort=10,
+def generate_workplace_contact_network(N, num_cohorts=1, num_nodes_per_cohort=100, num_teams_per_cohort=10,
                                         mean_intracohort_degree=6, pct_contacts_intercohort=0.2,
                                         farz_params={'alpha':5.0, 'gamma':5.0, 'beta':0.5, 'r':1, 'q':0.0, 'phi':10, 
                                                      'b':0, 'epsilon':1e-6, 'directed': False, 'weighted': False},
@@ -31,7 +31,7 @@ def generate_workplace_contact_network(num_cohorts=1, num_nodes_per_cohort=100, 
 
         farz_params.update({'n':numNodes, 'k':numTeams, 'm':cohortMeanDegree})
 
-        cohortNetwork, cohortTeamLabels = FARZ.generate(farz_params={'n':1000, 
+        cohortNetwork, cohortTeamLabels = FARZ.generate(farz_params={'n':N, 
                                                     'm':10, 
                                                     'k':100,
                                                     'beta':0.75, 
@@ -497,8 +497,11 @@ def generate_community_networks(
                     if(graph_gen_attempts % 5 == 0):
                         # Relax the tolerance after every 5 failed attempts
                         tolerance_relaxations += 1
-                        targetMeanDegreeRange = (targetMeanDegree - mean_degree_tolerance*2**tolerance_relaxations, 
-                                                 targetMeanDegree + mean_degree_tolerance*2**tolerance_relaxations)
+                        try:
+                            targetMeanDegreeRange = (targetMeanDegree - mean_degree_tolerance*2**tolerance_relaxations, 
+                                                     targetMeanDegree + mean_degree_tolerance*2**tolerance_relaxations)
+                        except OverflowError:
+                            targetMeanDegreeRange = (0, N)
                         degree_param = targetMeanDegree
                     else:
                         if(meanDegree < targetMeanDegreeRange[0]):
@@ -705,6 +708,14 @@ def generate_community_networks(
 # import matplotlib.pyplot as plt
 # plt.imshow(ageBracket_contactMatrix, cmap='Blues')
 # plt.show()
+
+
+def apply_social_distancing(network, contact_retention_prob):
+    for node in network.nodes():
+        print(network.edges(node))
+    for edge in network.edges():
+        print(edge)
+    
 
 
 

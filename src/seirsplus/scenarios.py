@@ -3,7 +3,7 @@ import numpy as np
 from seirsplus import utils
 
 
-def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_duration=False,
+def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_at_zero_infected=False,
                                     # Intervention timing params:
                                     cadence_dt=1, 
                                     cadence_cycle_length=28,
@@ -93,15 +93,17 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
         # For each cadence, actions are done on the cadence intervals included in the associated list.
         if(cadence_presets == 'default'):
             cadence_presets   = {
-                                    'semidaily':  np.arange(start=0, stop=cadence_cycle_length, step=0.5),
-                                    'daily':      np.arange(start=0, stop=cadence_cycle_length, step=1),
-                                    'nightly':    np.arange(start=0.5, stop=cadence_cycle_length, step=1),
-                                    'weekday':    [d for d in np.arange(start=0, stop=cadence_cycle_length, step=1) if (d%7!=5 and d%7!=6)],
-                                    'weekend':    [d for d in np.arange(start=0, stop=cadence_cycle_length, step=1) if (d%7==5 or d%7==6)],
-                                    'semiweekly': [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=3.5)],
-                                    'weekly':     np.arange(start=0, stop=cadence_cycle_length, step=7),
-                                    'biweekly':   np.arange(start=0, stop=cadence_cycle_length, step=14),
-                                    'monthly':    np.arange(start=0, stop=cadence_cycle_length, step=28),
+                                    'semidaily':  [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=0.5)],
+                                    'daily':      [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=1)],
+                                    'nightly':    [int(d) for d in np.arange(start=0.5, stop=cadence_cycle_length, step=1)],
+                                    'weekday':    [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=1) if (d%7!=5 and d%7!=6)],
+                                    'weekend':    [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=1) if (d%7==5 or d%7==6)],
+                                    '3x-weekly':  [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=7/3)],
+                                    '2x-weekly':  [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=7/2)],
+                                    'semiweekly': [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=7/2)],
+                                    'weekly':     [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=7/1)],
+                                    'biweekly':   [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=7*2)],
+                                    'monthly':    [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=7*4)],
                                     'initial':    [0],
                                     'never':      []
                                 }
@@ -114,10 +116,11 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
         #----------------------------------------
         # Initialize network activity parameters:
         #----------------------------------------
-        networkActiveTimes = {network: ([cadence_presets[individual_cadence] for individual_cadence in network_active_cadences] 
-                                            if isinstance(network_active_cadences, (list, np.ndarray)) 
-                                            else [cadence_presets[network_active_cadences[network]]]*model.pop_size) 
-                                        for network in model.networks}
+        if(network_active_cadences is not None):
+            networkActiveTimes = {network: ([cadence_presets[individual_cadence] for individual_cadence in network_active_cadences] 
+                                                if isinstance(network_active_cadences, (list, np.ndarray)) 
+                                                else [cadence_presets[network_active_cadences[network]]]*model.pop_size) 
+                                            for network in model.networks}
         
         #----------------------------------------
         # Initialize onset parameters:
@@ -126,46 +129,46 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
 
         flag_onset = {flag: [False]*model.pop_size for flag in onset_flags} # bools for tracking which onsets have triggered for each individual
         
-        #----------------------------------------
-        # Initialize testing parameters:
-        #----------------------------------------
-        #........................................
-        def process_test_parameters(test_params):
-            # TODO: move this into a set_test_params function inside compartment_network_models?
-            if(isinstance(test_params, str) and '.json' in test_params):
-                with open(test_params) as test_params_file:
-                    test_params = json.load(test_params_file)
-            elif(isinstance(test_params, dict)):
-                pass
-            elif(test_params is None):
-                # If no test params are given, default to a test that is 100% sensitive/specific to all compartments with the 'infected' flag:
-                test_params = {}
-                infectedFlagCompartments = model.get_compartments_by_flag(prevalence_flags)
-                for compartment in model.compartments:
-                    test_params.update({compartment: {"default_test": {"sensitivity": 1.0 if compartment in infectedFlagCompartments else 0.0, "specificity": 1.0}}})
-            else:
-                raise BaseException("Specify test parameters with a dictionary or JSON file.")
-            #----------------------------------------
-            test_types = set()
-            for compartment, comp_params in test_params.items():
-                for test_type, testtype_params in comp_params.items():
-                    test_types.add(test_type)
-                    # Process sensitivity values for the current compartment and test type:
-                    try: # convert sensitivity(s) provided to a list of values (will be interpreted as time course) 
-                        testtype_params['sensitivity'] = [testtype_params['sensitivity']] if not (isinstance(testtype_params['sensitivity'], (list, np.ndarray))) else testtype_params['sensitivity']
-                    except KeyError:
-                        testtype_params['sensitivity'] = [0.0]
-                    # Process sensitivity values for the current compartment and test type:
-                    try: # convert sensitivity(s) provided to a list of values (will be interpreted as time course) 
-                        testtype_params['specificity'] = [testtype_params['specificity']] if not (isinstance(testtype_params['specificity'], (list, np.ndarray))) else testtype_params['specificity']
-                    except KeyError:
-                        testtype_params['specificity'] = [0.0]
-            model.test_params = test_params
-            model.test_types  = test_types
-            return test_params, test_types
-        #........................................
+        # #----------------------------------------
+        # # Initialize testing parameters:
+        # #----------------------------------------
+        # #........................................
+        # def process_test_parameters(test_params):
+        #     >>># TODO: move this into a set_test_params function inside compartment_network_models?
+        #     if(isinstance(test_params, str) and '.json' in test_params):
+        #         with open(test_params) as test_params_file:
+        #             test_params = json.load(test_params_file)
+        #     elif(isinstance(test_params, dict)):
+        #         pass
+        #     elif(test_params is None):
+        #         # If no test params are given, default to a test that is 100% sensitive/specific to all compartments with the 'infected' flag:
+        #         test_params = {}
+        #         infectedFlagCompartments = model.get_compartments_by_flag(prevalence_flags)
+        #         for compartment in model.compartments:
+        #             test_params.update({compartment: {"default_test": {"sensitivity": 1.0 if compartment in infectedFlagCompartments else 0.0, "specificity": 1.0}}})
+        #     else:
+        #         raise BaseException("Specify test parameters with a dictionary or JSON file.")
+        #     #----------------------------------------
+        #     test_types = set()
+        #     for compartment, comp_params in test_params.items():
+        #         for test_type, testtype_params in comp_params.items():
+        #             test_types.add(test_type)
+        #             # Process sensitivity values for the current compartment and test type:
+        #             try: # convert sensitivity(s) provided to a list of values (will be interpreted as time course) 
+        #                 testtype_params['sensitivity'] = [testtype_params['sensitivity']] if not (isinstance(testtype_params['sensitivity'], (list, np.ndarray))) else testtype_params['sensitivity']
+        #             except KeyError:
+        #                 testtype_params['sensitivity'] = [0.0]
+        #             # Process sensitivity values for the current compartment and test type:
+        #             try: # convert sensitivity(s) provided to a list of values (will be interpreted as time course) 
+        #                 testtype_params['specificity'] = [testtype_params['specificity']] if not (isinstance(testtype_params['specificity'], (list, np.ndarray))) else testtype_params['specificity']
+        #             except KeyError:
+        #                 testtype_params['specificity'] = [0.0]
+        #     model.test_params = test_params
+        #     model.test_types  = test_types
+        #     return test_params, test_types
+        # #........................................
 
-        process_test_parameters(test_params)
+        model.update_test_parameters(test_params, prevalence_flags=prevalence_flags)
 
         test_type_onset     = test_type_onset if test_type_onset is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
         test_type_traced    = test_type_traced if test_type_traced is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
@@ -178,17 +181,22 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
         #----------------------------------------
         # Initialize individual compliances:
         #----------------------------------------
-        isolation_compliance_onset              = utils.param_as_array(isolation_compliance_onset, model.pop_size) 
-        isolation_compliance_onset_groupmate    = utils.param_as_array(isolation_compliance_onset_groupmate, model.pop_size) 
-        isolation_compliance_positive           = utils.param_as_array(isolation_compliance_positive, model.pop_size) 
-        isolation_compliance_positive_groupmate = utils.param_as_array(isolation_compliance_positive_groupmate, model.pop_size) 
-        isolation_compliance_traced             = utils.param_as_array(isolation_compliance_traced, model.pop_size) 
-        testing_compliance_proactive            = utils.param_as_array(testing_compliance_proactive, model.pop_size) 
-        testing_compliance_onset                = utils.param_as_array(testing_compliance_onset, model.pop_size) 
-        testing_compliance_onset_groupmate      = utils.param_as_array(testing_compliance_onset_groupmate, model.pop_size) 
-        testing_compliance_positive_groupmate   = utils.param_as_array(testing_compliance_positive_groupmate, model.pop_size) 
-        testing_compliance_traced               = utils.param_as_array(testing_compliance_traced, model.pop_size) 
-        tracing_compliance                      = utils.param_as_array(tracing_compliance, model.pop_size) 
+        # >>> These compliance arrays dont make sense
+        isolation_compliance_onset              = utils.param_as_bool_array(isolation_compliance_onset, (1, model.pop_size)).flatten()
+        isolation_compliance_onset_groupmate    = utils.param_as_bool_array(isolation_compliance_onset_groupmate, (1, model.pop_size)).flatten()
+        isolation_compliance_positive           = utils.param_as_bool_array(isolation_compliance_positive, (1, model.pop_size)).flatten()
+        isolation_compliance_positive_groupmate = utils.param_as_bool_array(isolation_compliance_positive_groupmate, (1, model.pop_size)).flatten()
+        isolation_compliance_traced             = utils.param_as_bool_array(isolation_compliance_traced, (1, model.pop_size)).flatten()
+        testing_compliance_proactive            = utils.param_as_bool_array(testing_compliance_proactive, (1, model.pop_size)).flatten()
+        testing_compliance_onset                = utils.param_as_bool_array(testing_compliance_onset, (1, model.pop_size)).flatten()
+        testing_compliance_onset_groupmate      = utils.param_as_bool_array(testing_compliance_onset_groupmate, (1, model.pop_size)).flatten()
+        testing_compliance_positive_groupmate   = utils.param_as_bool_array(testing_compliance_positive_groupmate, (1, model.pop_size)).flatten()
+        testing_compliance_traced               = utils.param_as_bool_array(testing_compliance_traced, (1, model.pop_size)).flatten()
+        tracing_compliance                      = utils.param_as_bool_array(tracing_compliance, (1, model.pop_size)).flatten()
+
+        # print("compliance")
+        # print(isolation_compliance_onset)
+        # exit()
 
         #----------------------------------------
         # Initialize intervention exclusion criteria:
@@ -232,6 +240,10 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
         totalNumPositives_positive_groupmate  = 0
         totalNumPositives_traced              = 0
         totalNumPositives                     = 0
+        totalNumTruePositives                 = 0
+        totalNumFalsePositives                = 0
+        totalNumTrueNegatives                 = 0
+        totalNumFalseNegatives                = 0
         totalNumIsolations_onset              = 0
         totalNumIsolations_onset_groupmate    = 0
         totalNumIsolations_positive           = 0
@@ -239,6 +251,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
         totalNumIsolations_traced             = 0
         totalNumIsolations                    = 0
         totalNumIntroductions                 = 0
+        peakNumIsolated                       = 0
 
 
         #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -257,10 +270,11 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
                 # Introduce exogenous cases randomly:
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                 numNewExposures   = np.random.poisson(lam=case_introduction_rate*cadence_dt)
-                introductionNodes = model.introduce_random_exposures(numNewExposures, compartment='all', exposed_to='any')
-                if(len(introductionNodes) > 0):
-                    print("[NEW INTRODUCTION @ t = %.2f (%d exposed)]" % (model.t, len(introductionNodes)))
-                totalNumIntroductions += len(introductionNodes)
+                if(numNewExposures > 0):
+                    introductionNodes = model.introduce_random_exposures(numNewExposures, compartment='all', exposed_to='any')
+                    if(len(introductionNodes) > 0):
+                        print("[NEW INTRODUCTION @ t = %.2f (%d exposed)]" % (model.t, len(introductionNodes)))
+                    totalNumIntroductions += len(introductionNodes)
 
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                 # Update network activities:
@@ -275,6 +289,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
                 currentNumInfected = model.get_count_by_flag(prevalence_flags)
+                print("currentNumInfected", currentNumInfected)
                 currentPrevalence  = currentNumInfected/model.N[model.tidx]
                 currentNumIsolated = np.count_nonzero(model.isolation)
 
@@ -285,7 +300,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
                 if(interventionOn):
 
                     print("[SCENARIO @ t = %.2f (t_cadence ~%.2f) :: Currently %d infected (%.2f%%), %d isolated]" % (model.t, current_cadence_time, currentNumInfected, ((currentNumInfected)/model.N[model.tidx])*100, currentNumIsolated))
-                    print("\tState counts: ", list(zip(np.unique(model.X, return_counts=True)[0], np.unique(model.X, return_counts=True)[-1])))
+                    print("\tState counts: ", list(zip([model.get_compartment_by_state_id(sid) for sid in np.unique(model.X, return_counts=True)[0]], np.unique(model.X, return_counts=True)[-1])))
 
                     isolationSet_onset              = set()
                     isolationSet_onset_groupmate    = set()
@@ -371,19 +386,20 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     # Upon being traced as contacts of positive cases:
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    tracingCohort = tracingQueue.pop(0)
-                    if(len(tracingCohort) > 0 and (any(isolation_compliance_traced) or any(testing_compliance_traced))):
-                        for tracedIndividual in tracingCohort:
-                            #---------------------------------------------
-                            # Isolate individual upon being traced:
-                            #---------------------------------------------
-                            if(isolation_compliance_traced[tracedIndividual]):
-                                isolationSet_traced.add(tracedIndividual)
-                            #---------------------------------------------
-                            # Test individual upon being traced:
-                            #---------------------------------------------
-                            if(testing_compliance_traced[tracedIndividual]):
-                                testingSet_traced.add(tracedIndividual)
+                    if(len(tracingQueue) > 0):
+                        tracingCohort = tracingQueue.pop(0)
+                        if(len(tracingCohort) > 0 and (any(isolation_compliance_traced) or any(testing_compliance_traced))):
+                            for tracedIndividual in tracingCohort:
+                                #---------------------------------------------
+                                # Isolate individual upon being traced:
+                                #---------------------------------------------
+                                if(isolation_compliance_traced[tracedIndividual]):
+                                    isolationSet_traced.add(tracedIndividual)
+                                #---------------------------------------------
+                                # Test individual upon being traced:
+                                #---------------------------------------------
+                                if(testing_compliance_traced[tracedIndividual]):
+                                    testingSet_traced.add(tracedIndividual)
 
                     
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -440,13 +456,17 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
                         if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
                             break
                         if(testIndividual not in testedIndividuals):
-                            testResult = model.test(testIndividual, test_type_onset)
+                            testResult, testTrueness = model.test(testIndividual, test_type_onset)
                             numTested_onset += 1
                             testedIndividuals.add(testIndividual)
                             if(testResult == True):
                                 positiveIndividuals.add(testIndividual)
                                 positiveResultSet[test_type_onset].add(testIndividual)
                                 numPositive_onset += 1
+                            if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
+                            elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
+                            elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
+                            elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
                     #---------------------------------------------
                     # Administer onset groupmate tests:
                     #---------------------------------------------
@@ -457,13 +477,17 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
                         if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
                             break
                         if(testIndividual not in testedIndividuals):
-                            testResult = model.test(testIndividual, test_type_onset_groupmate)
+                            testResult, testTrueness = model.test(testIndividual, test_type_onset_groupmate)
                             numTested_onset_groupmate += 1
                             testedIndividuals.add(testIndividual)
                             if(testResult == True):
                                 positiveIndividuals.add(testIndividual)
                                 positiveResultSet[test_type_onset_groupmate].add(testIndividual)
                                 numPositive_onset_groupmate += 1
+                            if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
+                            elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
+                            elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
+                            elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
                     #---------------------------------------------
                     # Administer positive groupmate tests:
                     #---------------------------------------------
@@ -474,13 +498,17 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
                         if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
                             break
                         if(testIndividual not in testedIndividuals):
-                            testResult = model.test(testIndividual, test_type_positive_groupmate)
+                            testResult, testTrueness = model.test(testIndividual, test_type_positive_groupmate)
                             numTested_positive_groupmate += 1
                             testedIndividuals.add(testIndividual)
                             if(testResult == True):
                                 positiveIndividuals.add(testIndividual)
                                 positiveResultSet[test_type_positive_groupmate].add(testIndividual)
                                 numPositive_positive_groupmate += 1
+                            if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
+                            elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
+                            elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
+                            elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
                     #---------------------------------------------
                     # Administer tracing tests:
                     #---------------------------------------------
@@ -491,13 +519,17 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
                         if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
                             break
                         if(testIndividual not in testedIndividuals):
-                            testResult = model.test(testIndividual, test_type_traced)
+                            testResult, testTrueness = model.test(testIndividual, test_type_traced)
                             numTested_traced += 1
                             testedIndividuals.add(testIndividual)
                             if(testResult == True):
                                 positiveIndividuals.add(testIndividual)
                                 positiveResultSet[test_type_traced].add(testIndividual)
                                 numPositive_traced += 1
+                            if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
+                            elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
+                            elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
+                            elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
                     #---------------------------------------------
                     # Administer proactive tests:
                     #---------------------------------------------
@@ -508,13 +540,17 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
                         if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
                             break
                         if(testIndividual not in testedIndividuals):
-                            testResult = model.test(testIndividual, test_type_proactive)
+                            testResult, testTrueness = model.test(testIndividual, test_type_proactive)
                             numTested_proactive += 1
                             testedIndividuals.add(testIndividual)
                             if(testResult == True):
                                 positiveIndividuals.add(testIndividual)
                                 positiveResultSet[test_type_proactive].add(testIndividual)
                                 numPositive_proactive += 1
+                            if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
+                            elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
+                            elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
+                            elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
 
                     #---------------------------------------------
                     
@@ -628,6 +664,8 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
                     totalNumIsolations_traced             += len(isolationCohort_traced)
                     totalNumIsolations                    += len(isolationCohort)
 
+                    peakNumIsolated                       = max(peakNumIsolated, np.count_nonzero(model.isolation))
+
                     print("\t"+str(numTested_proactive)          +"\ttested proactively                     [+ "+str(numPositive_proactive)+" positive (%.2f %%) +]" % (numPositive_proactive/numTested_proactive*100 if numTested_proactive>0 else 0))
                     print("\t"+str(numTested_onset)              +"\ttested "+str(testing_delay_onset)+" days after onset              [+ "+str(numPositive_onset)+" positive (%.2f %%) +]" % (numPositive_onset/numTested_onset*100 if numTested_onset>0 else 0))                    
                     print("\t"+str(numTested_onset_groupmate)    +"\ttested "+str(testing_delay_onset_groupmate)+" days after groupmate onset    [+ "+str(numPositive_onset_groupmate)+" positive (%.2f %%) +]" % (numPositive_onset_groupmate/numTested_onset_groupmate*100 if numTested_onset_groupmate>0 else 0))
@@ -650,8 +688,9 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     
             running = model.run_iteration(max_dt=max_dt)
-            if(run_full_duration):
-                running = model.t < T
+            
+            if(terminate_at_zero_infected):
+                running = running and currentNumInfected > 0
 
             # while loop
             #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -680,12 +719,17 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, run_full_du
             'total_num_positives_positive_groupmate':   totalNumPositives_positive_groupmate, 
             'total_num_positives_traced':               totalNumPositives_traced,             
             'total_num_positives':                      totalNumPositives,                    
+            'total_num_true_positives':                 totalNumTruePositives,                    
+            'total_num_false_positives':                totalNumFalsePositives,                    
+            'total_num_true_negatives':                 totalNumTrueNegatives,                    
+            'total_num_false_negatives':                totalNumFalseNegatives,                    
             'total_num_isolations_onset':               totalNumIsolations_onset,             
             'total_num_isolations_onset_groupmate':     totalNumIsolations_onset_groupmate,   
             'total_num_isolations_positive':            totalNumIsolations_positive,          
             'total_num_isolations_positive_groupmate':  totalNumIsolations_positive_groupmate,
             'total_num_isolations_traced':              totalNumIsolations_traced,            
-            'total_num_isolations':                     totalNumIsolations 
+            'total_num_isolations':                     totalNumIsolations,
+            'peak_num_isolated':                        peakNumIsolated 
             })
 
         #---------------------------------------------

@@ -38,6 +38,13 @@ def param_as_array(param, shape):
 	return np.array(param).reshape(shape) if isinstance(param, (list, np.ndarray)) else np.full(fill_value=param, shape=shape)
 
 
+def param_as_bool_array(param, shape):
+    if(isinstance(param, (int, float)) and param>=0 and param<=1):
+        return np.array(param_as_array(np.random.binomial(n=1, p=param, size=max(shape[0], shape[1])), shape), dtype=bool)
+    else:
+        return np.array(param_as_array(param, shape), dtype=bool)
+
+
 def gamma_dist(mean, coeffvar, N):
     scale = mean * coeffvar ** 2
     shape = mean / scale
@@ -62,17 +69,17 @@ def dist_stats(dists, names=None):
             }
         )
 
-        print(
-            (name if name is not None else 'dist'+str(i+1)+':')
-            + " mean = %.2f, std = %.2f, 95%% CI = (%.2f, %.2f)"
-            % (
-                np.mean(dist),
-                np.std(dist),
-                np.percentile(dist, 2.5),
-                np.percentile(dist, 97.5),
-            )
-        )
-        print()
+        # print(
+        #     (name if name is not None else 'dist'+str(i+1)+':')
+        #     + " mean = %.2f, std = %.2f, 95%% CI = (%.2f, %.2f)"
+        #     % (
+        #         np.mean(dist),
+        #         np.std(dist),
+        #         np.percentile(dist, 2.5),
+        #         np.percentile(dist, 97.5),
+        #     )
+        # )
+        # print()
 
         # if plot:
         #     plt.hist(
@@ -112,7 +119,7 @@ def network_stats(networks, names=None, calc_avg_path_length=False, calc_num_con
         degree_CV     = np.std(degree)/np.mean(degree)
         degree_CV2    = (np.std(degree)/np.mean(degree))**2
 
-        print(degree_mean, "(", np.percentile(degree, 25), np.median(degree), np.percentile(degree, 75), ")")
+        # print(degree_mean, "(", np.percentile(degree, 25), np.median(degree), np.percentile(degree, 75), ")")
 
         try: 
             assortativity   = networkx.degree_assortativity_coefficient(network)  
@@ -150,14 +157,14 @@ def network_stats(networks, names=None, calc_avg_path_length=False, calc_num_con
                         'avg_path_length'+('_'+name if len(name)>0 else ''):      avg_path_length,
                         'num_connected_comps'+('_'+name if len(name)>0 else ''):  num_connected_comps  } )
 
-        if(name):
-            print(name+":")
-        print("Degree: mean = %.2f, std = %.2f, 95%% CI = (%.2f, %.2f)\n        CV = %.2f, CV^2 = %.2f" 
-              % (degree_mean, degree_stdev, degree_95CI[0], degree_95CI[1], degree_CV, degree_CV2) ) 
-        print("Assortativity:    ", assortativity)
-        print("Clustering coeff: ", cluster_coeff)
-        print("Avg. path length: ", avg_path_length)
-        print("Connected comps.: ", num_connected_comps)
+        # if(name):
+        #     print(name+":")
+        # print("Degree: mean = %.2f, std = %.2f, 95%% CI = (%.2f, %.2f)\n        CV = %.2f, CV^2 = %.2f" 
+        #       % (degree_mean, degree_stdev, degree_95CI[0], degree_95CI[1], degree_CV, degree_CV2) ) 
+        # print("Assortativity:    ", assortativity)
+        # print("Clustering coeff: ", cluster_coeff)
+        # print("Avg. path length: ", avg_path_length)
+        # print("Connected comps.: ", num_connected_comps)
         
     #     if(plot):
     #         plt.hist(degree, bins=np.arange(0, int(max(degree)+1), step=bin_size), label=(name+" degree" if name else False), color=colors[i], edgecolor='white', alpha=0.6, zorder=(-1*i if reverse_plot else i))
