@@ -15,6 +15,9 @@ import scipy.integrate
 from seirsplus.models.compartment_model_builder import CompartmentModelBuilder
 from seirsplus import utils
 
+import itertools
+import time
+
 
 class CompartmentNetworkModel():
 
@@ -312,6 +315,7 @@ class CompartmentNetworkModel():
 
 
     def calc_propensities(self):
+        # time_calcprop_start = time.time()
 
         propensities     = []
         transitions      = []
@@ -442,7 +446,7 @@ class CompartmentNetworkModel():
         #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         propensities = np.hstack(propensities) if len(propensities)>0 else np.array([[]])
-
+        # print("time_calcprop\t\t", time.time() - time_calcprop_start)
         return propensities, transitions
         
 
@@ -451,6 +455,8 @@ class CompartmentNetworkModel():
 
 
     def run_iteration(self, max_dt=None, default_dt=0.1):
+
+        # time_runiter_start = time.time()
 
         max_dt = self.tmax if max_dt is None else max_dt
 
@@ -517,6 +523,7 @@ class CompartmentNetworkModel():
 
                 # return without any further event execution
                 self.update_data_series()
+                # print("time_runiter_maxdt\t", time.time() - time_runiter_start)
                 return True
 
                 #----------------------------------------
@@ -581,10 +588,12 @@ class CompartmentNetworkModel():
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         if(self.t >= self.tmax):
             self.finalize_data_series()
+            # print("time_runiter_final\t", time.time() - time_runiter_start)
             return False
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+        # print("time_runiter_stddt\t", time.time() - time_runiter_start)
         return True
 
 
@@ -632,9 +641,13 @@ class CompartmentNetworkModel():
 
 
     def update_data_series(self):
+        # time_updtsers_start = time.time()
+        # time_updtsers_startA = time.time()
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the time series:
         self.tseries[self.tidx]     = self.t
+        # print("\ttime_updtsers A\t\t", time.time() - time_updtsers_startA)
+        # time_updtsers_startB = time.time()
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the data series of counts of nodes in each compartment:
         for compartment in self.compartments:
@@ -642,18 +655,27 @@ class CompartmentNetworkModel():
             #------------------------------------
             if(compartment not in self.excludeFromEffPopSize):
                 self.N[self.tidx] += self.counts[compartment][self.tidx]
+        # print("\ttime_updtsers B\t\t", time.time() - time_updtsers_startB)
+        # time_updtsers_startC = time.time()
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the data series of counts of nodes with each flag:
         if(self.track_flag_counts):
             for flag in self.allCompartmentFlags.union(self.allNodeFlags):
+                # print("\t\tcalc flag count for", flag)
                 if(flag not in self.flag_counts):
                     self.flag_counts[flag] = np.zeros_like(self.counts[self.default_state])
+                # time_updtsers_startC1 = time.time()
                 flag_count = len(self.get_individuals_by_flag(flag))
+                # print("\t\ttime_updtsers C1\t", time.time() - time_updtsers_startC1)
                 self.flag_counts[flag][self.tidx] = flag_count
+        # print("\ttime_updtsers C\t\t", time.time() - time_updtsers_startC)
+        # time_updtsers_startD = time.time()
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Store system states
         if(self.store_Xseries):
             self.Xseries[self.tidx,:] = self.X.T
+        # print("\ttime_updtsers D\t\t", time.time() - time_updtsers_startD)
+        # time_updtsers_startE = time.time()
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Store system states for specified subgroups
         if(self.nodeGroupData):
@@ -663,12 +685,15 @@ class CompartmentNetworkModel():
                     #------------------------------------
                     if(compartment not in self.excludeFromEffPopSize):
                         self.nodeGroupData[groupName]['N'][self.tidx] += self.counts[compartment][self.tidx]
+        # print("\ttime_updtsers E\t\t", time.time() - time_updtsers_startE)
+        # time_updtsers_startF = time.time()
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize/reset data series for cumulative num cases:
         if(self.tidx == 0):    
             self.cum_num_cases    = np.zeros_like(self.counts[self.default_state])
             self.cum_num_cases[0] = len(self.get_individuals_by_flag(self.prevalence_flags))
-
+        # print("\ttime_updtsers F\t\t", time.time() - time_updtsers_startF)
+        # print("time_updtsers\t\t", time.time() - time_updtsers_start)
 
     ########################################################
 
@@ -1317,16 +1342,16 @@ class CompartmentNetworkModel():
         flagged_individuals_sets = []
         for flag in flags:
             flagged_individuals = set()
-            flagged_compartments = self.get_compartments_by_flag(flag)
-            for i in range(self.pop_size):
-                if( ((flag in self.node_flags[i]) or any([ self.X[i][0]==self.stateID[c] for c in flagged_compartments ])) == has_flag ):
-                    flagged_individuals.add(i)
+            if(len(self.allCompartmentFlags) > 0):
+                flagged_individuals.update( np.where(np.in1d(self.X, [self.stateID[c] for c in self.get_compartments_by_flag(flag)]))[0] )
+            if(len(self.allNodeFlags) > 0):
+                flagged_individuals.update( [i for i in range(self.pop_size) if flag in self.node_flags[i]] )
             flagged_individuals_sets.append(flagged_individuals)
         if((combine=='any' and has_flag) or (combine=='all' and not has_flag)):
             return list( set().union(*flagged_individuals_sets) )
         else: 
             return list( set(range(self.pop_size)).intersection(*flagged_individuals_sets) )
-
+        
 
     ########################################################
 

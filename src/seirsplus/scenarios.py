@@ -2,6 +2,8 @@ import numpy as np
 
 from seirsplus import utils
 
+import time
+
 
 def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_at_zero_cases=False,
                                     # Intervention timing params:
@@ -243,6 +245,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
 
         running     = True
         while running: 
+            # time_scenaro_start = time.time()
 
             current_cadence_time = ((model.t + init_cadence_offset) - np.fmod((model.t + init_cadence_offset), cadence_dt)) % (cadence_cycle_length - np.fmod(cadence_cycle_length, cadence_dt))
             if(current_cadence_time != last_cadence_time):
@@ -720,6 +723,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
             if(terminate_at_zero_cases):
                 running = running and (currentNumInfected > 0) # or currentNumIsolated > 0) if false positives occur at non-negligible rate then this ends up running for a long time after 0 true cases
 
+            # print("time_scenaro\t\t", time.time() - time_scenaro_start, "\n")
             # while loop
             #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
