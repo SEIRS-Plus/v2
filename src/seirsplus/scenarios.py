@@ -282,7 +282,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
                 if(interventionOn):
 
                     print("[SCENARIO @ t = %.2f (t_cadence ~%.2f) :: Currently %d infected (%.2f%%), %d isolated]" % (model.t, current_cadence_time, currentNumInfected, ((currentNumInfected)/model.N[model.tidx])*100, currentNumIsolated))
-                    print("\tState counts: ", list(zip([model.get_compartment_by_state_id(sid) for sid in np.unique(model.X, return_counts=True)[0]], np.unique(model.X, return_counts=True)[-1])))
+                    print(" State counts: ", list(zip([model.get_compartment_by_state_id(sid) for sid in np.unique(model.X, return_counts=True)[0]], np.unique(model.X, return_counts=True)[-1])))
 
                     isolationSet_onset              = set()
                     isolationSet_onset_groupmate    = set()
@@ -691,12 +691,12 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
 
                     peakNumIsolated                       = max(peakNumIsolated, np.count_nonzero(model.isolation))
 
-                    print("\t"+str(numTested_proactive)          +"\ttested proactively                        [+ "+str(numPositive_proactive)+" positive (%.2f %%) +]" % (numPositive_proactive/numTested_proactive*100 if numTested_proactive>0 else 0))
+                    print("\t"+str(numTested_proactive)          +"\ttested proactively                       [+ "+str(numPositive_proactive)+" positive (%.2f %%) +]" % (numPositive_proactive/numTested_proactive*100 if numTested_proactive>0 else 0))
                     print("\t"+str(numTested_onset)              +"\ttested "+str(testing_delay_onset)+" days after onset              [+ "+str(numPositive_onset)+" positive (%.2f %%) +]" % (numPositive_onset/numTested_onset*100 if numTested_onset>0 else 0))                    
                     print("\t"+str(numTested_onset_groupmate)    +"\ttested "+str(testing_delay_onset_groupmate)+" days after groupmate onset    [+ "+str(numPositive_onset_groupmate)+" positive (%.2f %%) +]" % (numPositive_onset_groupmate/numTested_onset_groupmate*100 if numTested_onset_groupmate>0 else 0))
                     print("\t"+str(numTested_positive_groupmate) +"\ttested "+str(testing_delay_positive_groupmate)+" days after groupmate positive [+ "+str(numPositive_positive_groupmate)+" positive (%.2f %%) +]" % (numPositive_positive_groupmate/numTested_positive_groupmate*100 if numTested_positive_groupmate>0 else 0))
                     print("\t"+str(numTested_traced)             +"\ttested "+str(testing_delay_traced)+" days after being traced       [+ "+str(numPositive_traced)+" positive (%.2f %%) +]" % (numPositive_traced/numTested_traced*100 if numTested_traced>0 else 0))
-                    print("\t"+str(len(testedIndividuals))       +"\tTESTED TOTAL                              [+ "+str(len(positiveIndividuals))+" positive (%.2f %%) +]" % (len(positiveIndividuals)/len(testedIndividuals)*100 if len(testedIndividuals)>0 else 0))
+                    print("\t"+str(len(testedIndividuals))       +"\tTESTED TOTAL                             [+ "+str(len(positiveIndividuals))+" positive (%.2f %%) +]" % (len(positiveIndividuals)/len(testedIndividuals)*100 if len(testedIndividuals)>0 else 0))
 
                     for test_type in positiveResultQueue:
                         print("\t"+str(len(positiveResultCohort[test_type]))+"\tpositive result "+str(test_result_delay[test_type])+" days after "+test_type+" test")

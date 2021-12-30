@@ -63,10 +63,10 @@ class CompartmentNetworkModel():
         self.node_flags            = [[] for i in range(self.pop_size)]
         self.allNodeFlags          = set() 
         self.allCompartmentFlags   = set()
-        self.counts            = {}
-        self.flag_counts       = {} 
-        self.track_flag_counts = True
-        self.store_Xseries     = store_Xseries
+        self.counts                = {}
+        self.flag_counts           = {} 
+        self.track_flag_counts     = True
+        self.store_Xseries         = store_Xseries
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the compartment model configuration and parameterizations:
@@ -91,35 +91,6 @@ class CompartmentNetworkModel():
         self.isolation_period   = isolation_period
         self.isolation_timer    = np.zeros(self.pop_size)
         self.totalIsolationTime = np.zeros(self.pop_size)
-
-        # # #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # # # Initialize compartment IDs/metadata:
-        # # #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # self.stateID               = {}
-        # self.default_state         = list(self.compartments.keys())[0] # default to first compartment specified
-        # self.excludeFromEffPopSize = []
-        # self.node_flags            = [[] for i in range(self.pop_size)]
-        # self.allNodeFlags          = set() 
-        # self.allCompartmentFlags   = set()
-        # for c, compartment in enumerate(self.compartments):
-        #     comp_params = self.compartments[compartment]
-        #     #----------------------------------------
-        #     # Assign state ID number to each compartment (for internal state comparisons):
-        #     # self.stateID[compartment] = c 
-        #     #----------------------------------------
-        #     # Update the default compartment for this model:
-        #     if('default_state' in comp_params and comp_params['default_state']==True):
-        #         self.default_state = compartment
-        #     #----------------------------------------
-        #     # Update which compartments are excluded when calculating effective population size (N):
-        #     if('exclude_from_eff_pop' in comp_params and comp_params['exclude_from_eff_pop']==True):
-        #         self.excludeFromEffPopSize.append(compartment)
-        #     #----------------------------------------
-        #     # Update which compartment flags are in use:
-        #     if('flags' not in self.compartments[compartment]):
-        #         self.compartments[compartment]['flags'] = []
-        #     for flag in self.compartments[compartment]['flags']:
-        #         self.allCompartmentFlags.add(flag)
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize testing, vaccination, etc:
@@ -152,13 +123,6 @@ class CompartmentNetworkModel():
         # Initialize counts/prevalences and the states of individuals:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.process_initial_states()
-
-        #----------------------------------------
-        # Initialize exogenous prevalence for each compartment:
-        # self.exogenous_prevalence  = {}
-        # for c, compartment in enumerate(self.compartments):
-        #     comp_params = self.compartments[compartment]
-        #     self.exogenous_prevalence[compartment] = comp_params['exogenous_prevalence']
             
     
     ########################################################
@@ -494,6 +458,10 @@ class CompartmentNetworkModel():
             # Room has run out in the timeseries storage arrays; double the size of these arrays:
             self.increase_data_series_length()
 
+        # print("#  ", self.cum_num_cases[self.tidx], "->", self.cum_num_cases[self.tidx+1])
+        self.cum_num_cases[self.tidx+1] = self.cum_num_cases[self.tidx]
+        # print("##  ", self.cum_num_cases[self.tidx], "->", self.cum_num_cases[self.tidx+1])
+
         #----------------------------------------
         # Get the number of contacts relevant for the local transmission denominator for each individual:
         #----------------------------------------
@@ -578,6 +546,9 @@ class CompartmentNetworkModel():
             # Gather and save information about transmission events when they occur:
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             if(transition['type'] == 'infection'):
+                self.cum_num_cases[self.tidx] += 1
+                # print("##->", self.cum_num_cases[self.tidx])
+                # exit()
                 if(self.track_case_info):
                     self.process_new_case(transitionNode, transition)
                 
@@ -692,6 +663,11 @@ class CompartmentNetworkModel():
                     #------------------------------------
                     if(compartment not in self.excludeFromEffPopSize):
                         self.nodeGroupData[groupName]['N'][self.tidx] += self.counts[compartment][self.tidx]
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Initialize/reset data series for cumulative num cases:
+        if(self.tidx == 0):    
+            self.cum_num_cases    = np.zeros_like(self.counts[self.default_state])
+            self.cum_num_cases[0] = len(self.get_individuals_by_flag(self.prevalence_flags))
 
 
     ########################################################
@@ -701,6 +677,9 @@ class CompartmentNetworkModel():
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Allocate more entries for the time series:
         self.tseries = np.pad(self.tseries, [(0, self.pop_size*min(len(self.compartments), 10))], mode='constant', constant_values=0)
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Allocate more entries for the cumulative num cases series:
+        self.cum_num_cases = np.pad(self.tseries, [(0, self.pop_size*min(len(self.compartments), 10))], mode='constant', constant_values=0)
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Allocate more entries for the data series of counts of nodes in each compartment:
         for compartment in self.compartments:
@@ -739,6 +718,9 @@ class CompartmentNetworkModel():
         # Finalize the time series:
         self.tseries = np.array(self.tseries, dtype=float)[:self.tidx+1]
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Finalize the cumulative num cases series:
+        self.cum_num_cases = np.array(self.cum_num_cases, dtype=float)[:self.tidx+1]
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Finalize the data series of counts of nodes in each compartment:
         for compartment in self.compartments:
             self.counts[compartment] = np.array(self.counts[compartment], dtype=float)[:self.tidx+1]
@@ -767,7 +749,8 @@ class CompartmentNetworkModel():
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Compile summary results
-        self.results = { 'pop_size': self.pop_size }
+        self.results = { 'pop_size': self.pop_size,
+                         'cumulative_num_cases': np.max(self.cum_num_cases) }
         for compartment in self.compartments:
             self.results.update({ 'total_count_'+str(compartment):  int(self.get_count_by_compartment(compartment)),
                                   'peak_count_'+str(compartment):   int(np.max(self.counts[compartment])) })
