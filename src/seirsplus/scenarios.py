@@ -3,7 +3,7 @@ import numpy as np
 from seirsplus import utils
 
 
-def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_at_zero_infected=False,
+def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_at_zero_cases=False,
                                     # Intervention timing params:
                                     cadence_dt=1, 
                                     cadence_cycle_length=28,
@@ -38,31 +38,35 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
                                     test_params=None, 
                                     test_type_proactive=None,
                                     test_type_onset=None,
-                                    test_type_traced=None, 
+                                    test_type_traced=None,
+                                    test_type_deisolation=None, 
                                     test_result_delay=0,
                                     proactive_testing_cadence='never',
+                                    num_deisolation_tests=1,
                                     testing_capacity_max=1.0,
                                     testing_capacity_proactive=0.0,
                                     testing_delay_proactive=0,
                                     testing_delay_onset=1,
                                     testing_delay_onset_groupmate=1,
                                     testing_delay_positive_groupmate=1,
-                                    testing_delay_traced=1,                                    
-                                    testing_compliance_proactive=True,
-                                    testing_compliance_onset=False, 
-                                    testing_compliance_onset_groupmate=False,
-                                    testing_compliance_positive_groupmate=False,
-                                    testing_compliance_traced=False,
+                                    testing_delay_traced=1, 
+                                    testing_delay_deisolation=5,                                   
+                                    testing_compliance_proactive=1.0,
+                                    testing_compliance_onset=0.0, 
+                                    testing_compliance_onset_groupmate=0.0,
+                                    testing_compliance_positive_groupmate=0.0,
+                                    testing_compliance_traced=0.0,
+                                    testing_compliance_deisolation=0.0,
                                     testing_exclude_compartments=[],
                                     testing_exclude_flags=[],
-                                    testing_exclude_isolated=False,
+                                    testing_exclude_isolated=0.0,
                                     testing_exclude_afterNumTests=None,
                                     testing_exclude_afterNumVaccineDoses=None,
                                     # Tracing params:                                                                       
                                     tracing_num_contacts=None, 
                                     tracing_pct_contacts=0,
                                     tracing_delay=1,
-                                    tracing_compliance=True,
+                                    tracing_compliance=1.0,
                                     # Misc. params:
                                     intervention_groups=None
                                 ):
@@ -129,59 +133,24 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
 
         flag_onset = {flag: [False]*model.pop_size for flag in onset_flags} # bools for tracking which onsets have triggered for each individual
         
-        # #----------------------------------------
-        # # Initialize testing parameters:
-        # #----------------------------------------
-        # #........................................
-        # def process_test_parameters(test_params):
-        #     >>># TODO: move this into a set_test_params function inside compartment_network_models?
-        #     if(isinstance(test_params, str) and '.json' in test_params):
-        #         with open(test_params) as test_params_file:
-        #             test_params = json.load(test_params_file)
-        #     elif(isinstance(test_params, dict)):
-        #         pass
-        #     elif(test_params is None):
-        #         # If no test params are given, default to a test that is 100% sensitive/specific to all compartments with the 'infected' flag:
-        #         test_params = {}
-        #         infectedFlagCompartments = model.get_compartments_by_flag(prevalence_flags)
-        #         for compartment in model.compartments:
-        #             test_params.update({compartment: {"default_test": {"sensitivity": 1.0 if compartment in infectedFlagCompartments else 0.0, "specificity": 1.0}}})
-        #     else:
-        #         raise BaseException("Specify test parameters with a dictionary or JSON file.")
-        #     #----------------------------------------
-        #     test_types = set()
-        #     for compartment, comp_params in test_params.items():
-        #         for test_type, testtype_params in comp_params.items():
-        #             test_types.add(test_type)
-        #             # Process sensitivity values for the current compartment and test type:
-        #             try: # convert sensitivity(s) provided to a list of values (will be interpreted as time course) 
-        #                 testtype_params['sensitivity'] = [testtype_params['sensitivity']] if not (isinstance(testtype_params['sensitivity'], (list, np.ndarray))) else testtype_params['sensitivity']
-        #             except KeyError:
-        #                 testtype_params['sensitivity'] = [0.0]
-        #             # Process sensitivity values for the current compartment and test type:
-        #             try: # convert sensitivity(s) provided to a list of values (will be interpreted as time course) 
-        #                 testtype_params['specificity'] = [testtype_params['specificity']] if not (isinstance(testtype_params['specificity'], (list, np.ndarray))) else testtype_params['specificity']
-        #             except KeyError:
-        #                 testtype_params['specificity'] = [0.0]
-        #     model.test_params = test_params
-        #     model.test_types  = test_types
-        #     return test_params, test_types
-        # #........................................
+        #----------------------------------------
+        # Initialize testing parameters:
+        #----------------------------------------
 
         model.update_test_parameters(test_params, prevalence_flags=prevalence_flags)
 
-        test_type_onset     = test_type_onset if test_type_onset is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
-        test_type_traced    = test_type_traced if test_type_traced is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
-        test_type_proactive = test_type_proactive if test_type_proactive is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
+        test_type_onset       = test_type_onset if test_type_onset is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
+        test_type_traced      = test_type_traced if test_type_traced is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
+        test_type_deisolation = test_type_deisolation if test_type_deisolation is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
+        test_type_proactive   = test_type_proactive if test_type_proactive is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
 
-        test_result_delay   = {test_type: test_result_delay for test_type in model.test_types} if not isinstance(test_result_delay, dict) else test_result_delay
+        test_result_delay     = {test_type: test_result_delay for test_type in model.test_types} if not isinstance(test_result_delay, dict) else test_result_delay
 
         proactiveTestingTimes = [cadence_presets[individual_cadence] for individual_cadence in proactive_testing_cadence] if isinstance(proactive_testing_cadence, (list, np.ndarray)) else [cadence_presets[proactive_testing_cadence]]*model.pop_size
 
         #----------------------------------------
         # Initialize individual compliances:
         #----------------------------------------
-        # >>> These compliance arrays dont make sense
         isolation_compliance_onset              = utils.param_as_bool_array(isolation_compliance_onset, (1, model.pop_size)).flatten()
         isolation_compliance_onset_groupmate    = utils.param_as_bool_array(isolation_compliance_onset_groupmate, (1, model.pop_size)).flatten()
         isolation_compliance_positive           = utils.param_as_bool_array(isolation_compliance_positive, (1, model.pop_size)).flatten()
@@ -192,11 +161,21 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
         testing_compliance_onset_groupmate      = utils.param_as_bool_array(testing_compliance_onset_groupmate, (1, model.pop_size)).flatten()
         testing_compliance_positive_groupmate   = utils.param_as_bool_array(testing_compliance_positive_groupmate, (1, model.pop_size)).flatten()
         testing_compliance_traced               = utils.param_as_bool_array(testing_compliance_traced, (1, model.pop_size)).flatten()
+        testing_compliance_deisolation          = utils.param_as_bool_array(testing_compliance_deisolation, (1, model.pop_size)).flatten()
         tracing_compliance                      = utils.param_as_bool_array(tracing_compliance, (1, model.pop_size)).flatten()
-
-        # print("compliance")
-        # print(isolation_compliance_onset)
-        # exit()
+        # Store compliances as node attributes in the model object (e.g., for case logging purposes)
+        model.set_node_attributes('isolation_compliance_onset', isolation_compliance_onset)
+        model.set_node_attributes('isolation_compliance_onset_groupmate', isolation_compliance_onset_groupmate)
+        model.set_node_attributes('isolation_compliance_positive', isolation_compliance_positive)
+        model.set_node_attributes('isolation_compliance_positive_groupmate', isolation_compliance_positive_groupmate)
+        model.set_node_attributes('isolation_compliance_traced', isolation_compliance_traced)
+        model.set_node_attributes('testing_compliance_proactive', testing_compliance_proactive)
+        model.set_node_attributes('testing_compliance_onset', testing_compliance_onset)
+        model.set_node_attributes('testing_compliance_onset_groupmate', testing_compliance_onset_groupmate)
+        model.set_node_attributes('testing_compliance_positive_groupmate', testing_compliance_positive_groupmate)
+        model.set_node_attributes('testing_compliance_traced', testing_compliance_traced)
+        model.set_node_attributes('testing_compliance_deisolation', testing_compliance_deisolation)
+        model.set_node_attributes('tracing_compliance', tracing_compliance)
 
         #----------------------------------------
         # Initialize intervention exclusion criteria:
@@ -219,6 +198,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
         testingQueue_onset_groupmate            = [set() for i in range(int(testing_delay_onset_groupmate/cadence_dt) + (1 if np.fmod(testing_delay_onset_groupmate, cadence_dt)>0 else 0))]
         testingQueue_positive_groupmate         = [set() for i in range(max(1, (int(testing_delay_positive_groupmate/cadence_dt) + (1 if np.fmod(testing_delay_positive_groupmate, cadence_dt)>0 else 0))))]
         testingQueue_traced                     = [set() for i in range(max(1, (int(testing_delay_traced/cadence_dt) + (1 if np.fmod(testing_delay_traced, cadence_dt)>0 else 0))))]
+        testingQueue_deisolation                = [set() for i in range(max(1, (int(testing_delay_deisolation/cadence_dt) + (1 if np.fmod(testing_delay_deisolation, cadence_dt)>0 else 0))))]
         testingQueue_proactive                  = [set() for i in range(int(testing_delay_proactive/cadence_dt) + (1 if np.fmod(testing_delay_proactive, cadence_dt)>0 else 0))]
         tracingQueue                            = [set() for i in range(int(tracing_delay/cadence_dt) + (1 if np.fmod(tracing_delay, cadence_dt)>0 else 0))]
 
@@ -228,17 +208,19 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
         #----------------------------------------
         # Initialize intervention stats:
         #----------------------------------------
-        totalNumTests_proactive               = 0
-        totalNumTests_onset                   = 0
-        totalNumTests_onset_groupmate         = 0
-        totalNumTests_positive_groupmate      = 0
-        totalNumTests_traced                  = 0
-        totalNumTests                         = 0
+        totalNumTested_proactive              = 0
+        totalNumTested_onset                  = 0
+        totalNumTested_onset_groupmate        = 0
+        totalNumTested_positive_groupmate     = 0
+        totalNumTested_traced                 = 0
+        totalNumTested_deisolation            = 0
+        totalNumTested                        = 0
         totalNumPositives_proactive           = 0
         totalNumPositives_onset               = 0
         totalNumPositives_onset_groupmate     = 0
         totalNumPositives_positive_groupmate  = 0
         totalNumPositives_traced              = 0
+        totalNumPositives_deisolation         = 0
         totalNumPositives                     = 0
         totalNumTruePositives                 = 0
         totalNumFalsePositives                = 0
@@ -250,6 +232,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
         totalNumIsolations_positive_groupmate = 0
         totalNumIsolations_traced             = 0
         totalNumIsolations                    = 0
+        totalNumDeisolations                  = 0
         totalNumIntroductions                 = 0
         peakNumIsolated                       = 0
 
@@ -289,7 +272,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
                 currentNumInfected = model.get_count_by_flag(prevalence_flags)
-                print("currentNumInfected", currentNumInfected)
                 currentPrevalence  = currentNumInfected/model.N[model.tidx]
                 currentNumIsolated = np.count_nonzero(model.isolation)
 
@@ -331,7 +313,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
                     isolation_nonExcludedIndividuals  = set(np.argwhere(isolation_excluded==False).flatten())
 
                     #---------------------------------------------
-                    # Exclude the following individuals from all testing:
+                    # Exclude the following individuals from testing:
                     # (these lists referenced in proactive testing selection and testing execution below)
                     #---------------------------------------------
                     testing_excluded_byFlags        = (np.isin(range(model.pop_size), model.get_individuals_by_flag(testing_exclude_flags))).flatten()
@@ -343,7 +325,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
                     testing_excluded                = (testing_excluded_byFlags | testing_excluded_byCompartments | testing_excluded_byIsolation | testing_excluded_byNumTests | testing_excluded_byVaccineDoses)
 
                     testing_nonExcludedIndividuals  = set(np.argwhere(testing_excluded==False).flatten())
-
 
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     # Upon onset of flagged state (e.g., symptoms):
@@ -382,7 +363,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
                                                     if(testing_compliance_onset_groupmate[groupmate]):
                                                         testingSet_onset_groupmate.add(groupmate)                                                        
 
-
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     # Upon being traced as contacts of positive cases:
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -401,7 +381,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
                                 if(testing_compliance_traced[tracedIndividual]):
                                     testingSet_traced.add(tracedIndividual)
 
-                    
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     # Select individuals for proactive testing (on cadence days): 
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -514,22 +493,23 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
                     #---------------------------------------------
                     numTested_traced   = 0
                     numPositive_traced = 0
-                    testingCohort_traced = (testingQueue_traced.pop(0) & testing_nonExcludedIndividuals)
-                    for testIndividual in testingCohort_traced:
-                        if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
-                            break
-                        if(testIndividual not in testedIndividuals):
-                            testResult, testTrueness = model.test(testIndividual, test_type_traced)
-                            numTested_traced += 1
-                            testedIndividuals.add(testIndividual)
-                            if(testResult == True):
-                                positiveIndividuals.add(testIndividual)
-                                positiveResultSet[test_type_traced].add(testIndividual)
-                                numPositive_traced += 1
-                            if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
-                            elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
-                            elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
-                            elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
+                    if(len(testingQueue_traced) > 0):
+                        testingCohort_traced = (testingQueue_traced.pop(0) & testing_nonExcludedIndividuals)
+                        for testIndividual in testingCohort_traced:
+                            if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
+                                break
+                            if(testIndividual not in testedIndividuals):
+                                testResult, testTrueness = model.test(testIndividual, test_type_traced)
+                                numTested_traced += 1
+                                testedIndividuals.add(testIndividual)
+                                if(testResult == True):
+                                    positiveIndividuals.add(testIndividual)
+                                    positiveResultSet[test_type_traced].add(testIndividual)
+                                    numPositive_traced += 1
+                                if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
+                                elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
+                                elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
+                                elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
                     #---------------------------------------------
                     # Administer proactive tests:
                     #---------------------------------------------
@@ -551,7 +531,38 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
                             elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
                             elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
                             elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
-
+                    #---------------------------------------------
+                    # Administer de-isolation checkpoint tests:
+                    #---------------------------------------------
+                    numTested_deisolation = 0
+                    numPositive_deisolation = 0
+                    numDeisolating = 0
+                    if(len(testingQueue_deisolation) > 0):
+                        testingCohort_deisolation = (testingQueue_deisolation.pop(0)) # no testing exclusions
+                        for testIndividual in testingCohort_deisolation:
+                            if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
+                                break
+                            # print("DEISO CHECK TEST", testIndividual)
+                            testedIndividuals.add(testIndividual)
+                            numTested_deisolation += 1
+                            numNegativeResults = 0
+                            for test_rep in range(num_deisolation_tests):
+                                testResult, testTrueness = model.test(testIndividual, test_type_deisolation)
+                                # print("\t", testResult)
+                                if(testResult==False):
+                                    numNegativeResults += 1
+                                if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
+                                elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
+                                elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
+                                elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
+                            if(numNegativeResults==num_deisolation_tests):
+                                # Set this individual to exit isolation:
+                                # print(">>>> deisolate", testIndividual)
+                                model.set_isolation(testIndividual, False)
+                                numDeisolating += 1
+                            else:
+                                numPositive_deisolation += 1
+                            
                     #---------------------------------------------
                     
                     for test_type in positiveResultQueue:
@@ -638,24 +649,36 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
                     isolationCohort_traced             = (isolationQueue_traced.pop(0) & isolation_nonExcludedIndividuals)
                     isolationCohort = (isolationCohort_onset | isolationCohort_onset_groupmate | isolationCohort_positive | isolationCohort_positive_groupmate | isolationCohort_traced) 
 
+                    testingSet_deisolation = set()
+
                     for isoIndividual in isolationCohort:
+                        # Set this individual to be in isolation:
                         model.set_isolation(isoIndividual, True)
+                        # If compliant, put this individual in a queue for de-isolation testing:
+                        if(testing_compliance_deisolation[isoIndividual]):
+                            # print("putting in deiso queue", isoIndividual)
+                            testingSet_deisolation.add(isoIndividual)
+
+                    testingQueue_deisolation.append(testingSet_deisolation)
+
 
 
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-                    totalNumTests_proactive               += numTested_proactive
-                    totalNumTests_onset                   += numTested_onset
-                    totalNumTests_onset_groupmate         += numTested_onset_groupmate
-                    totalNumTests_positive_groupmate      += numTested_positive_groupmate
-                    totalNumTests_traced                  += numTested_traced
-                    totalNumTests                         += len(testedIndividuals)
+                    totalNumTested_proactive              += numTested_proactive
+                    totalNumTested_onset                  += numTested_onset
+                    totalNumTested_onset_groupmate        += numTested_onset_groupmate
+                    totalNumTested_positive_groupmate     += numTested_positive_groupmate
+                    totalNumTested_traced                 += numTested_traced
+                    totalNumTested_deisolation            += numTested_deisolation
+                    totalNumTested                        += len(testedIndividuals)
                     totalNumPositives_proactive           += numPositive_proactive
                     totalNumPositives_onset               += numPositive_onset
                     totalNumPositives_onset_groupmate     += numPositive_onset_groupmate
                     totalNumPositives_positive_groupmate  += numPositive_positive_groupmate
                     totalNumPositives_traced              += numPositive_traced
+                    totalNumPositives_deisolation         += numPositive_deisolation
                     totalNumPositives                     += len(positiveIndividuals) 
                     totalNumIsolations_onset              += len(isolationCohort_onset)
                     totalNumIsolations_onset_groupmate    += len(isolationCohort_onset_groupmate)
@@ -663,15 +686,17 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
                     totalNumIsolations_positive_groupmate += len(isolationCohort_positive_groupmate)
                     totalNumIsolations_traced             += len(isolationCohort_traced)
                     totalNumIsolations                    += len(isolationCohort)
+                    totalNumTested_deisolation            += numTested_deisolation*num_deisolation_tests
+                    totalNumDeisolations                  += numDeisolating
 
                     peakNumIsolated                       = max(peakNumIsolated, np.count_nonzero(model.isolation))
 
-                    print("\t"+str(numTested_proactive)          +"\ttested proactively                     [+ "+str(numPositive_proactive)+" positive (%.2f %%) +]" % (numPositive_proactive/numTested_proactive*100 if numTested_proactive>0 else 0))
+                    print("\t"+str(numTested_proactive)          +"\ttested proactively                        [+ "+str(numPositive_proactive)+" positive (%.2f %%) +]" % (numPositive_proactive/numTested_proactive*100 if numTested_proactive>0 else 0))
                     print("\t"+str(numTested_onset)              +"\ttested "+str(testing_delay_onset)+" days after onset              [+ "+str(numPositive_onset)+" positive (%.2f %%) +]" % (numPositive_onset/numTested_onset*100 if numTested_onset>0 else 0))                    
                     print("\t"+str(numTested_onset_groupmate)    +"\ttested "+str(testing_delay_onset_groupmate)+" days after groupmate onset    [+ "+str(numPositive_onset_groupmate)+" positive (%.2f %%) +]" % (numPositive_onset_groupmate/numTested_onset_groupmate*100 if numTested_onset_groupmate>0 else 0))
                     print("\t"+str(numTested_positive_groupmate) +"\ttested "+str(testing_delay_positive_groupmate)+" days after groupmate positive [+ "+str(numPositive_positive_groupmate)+" positive (%.2f %%) +]" % (numPositive_positive_groupmate/numTested_positive_groupmate*100 if numTested_positive_groupmate>0 else 0))
                     print("\t"+str(numTested_traced)             +"\ttested "+str(testing_delay_traced)+" days after being traced       [+ "+str(numPositive_traced)+" positive (%.2f %%) +]" % (numPositive_traced/numTested_traced*100 if numTested_traced>0 else 0))
-                    print("\t"+str(len(testedIndividuals))       +"\tTESTED TOTAL                           [+ "+str(len(positiveIndividuals))+" positive (%.2f %%) +]" % (len(positiveIndividuals)/len(testedIndividuals)*100 if len(testedIndividuals)>0 else 0))
+                    print("\t"+str(len(testedIndividuals))       +"\tTESTED TOTAL                              [+ "+str(len(positiveIndividuals))+" positive (%.2f %%) +]" % (len(positiveIndividuals)/len(testedIndividuals)*100 if len(testedIndividuals)>0 else 0))
 
                     for test_type in positiveResultQueue:
                         print("\t"+str(len(positiveResultCohort[test_type]))+"\tpositive result "+str(test_result_delay[test_type])+" days after "+test_type+" test")
@@ -682,6 +707,9 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
                     print("\t"+str(len(isolationCohort_positive_groupmate)) +"\tisolated "+str(isolation_delay_positive_groupmate)+" days after groupmate positive")
                     print("\t"+str(len(isolationCohort_traced))             +"\tisolated "+str(isolation_delay_traced)+" days after traced")
                     print("\t"+str(len(isolationCohort))                    +"\tISOLATED TOTAL")
+
+                    print("\t"+str(numTested_deisolation)       +"\ttested for de-isolation "+str(testing_delay_deisolation)+" days after entering isolation [+ "+str(numPositive_deisolation)+" positive (%.2f %%) +]" % (numPositive_deisolation/numTested_deisolation*100 if numTested_deisolation>0 else 0))
+                    print("\t"+str(numDeisolating)              +"\tDE-ISOLATED with "+str(num_deisolation_tests)+" negative tests.")
                     
 
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -689,8 +717,8 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
                     
             running = model.run_iteration(max_dt=max_dt)
             
-            if(terminate_at_zero_infected):
-                running = running and currentNumInfected > 0
+            if(terminate_at_zero_cases):
+                running = running and (currentNumInfected > 0) # or currentNumIsolated > 0) if false positives occur at non-negligible rate then this ends up running for a long time after 0 true cases
 
             # while loop
             #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -707,17 +735,19 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
             'intervention_end_time':                    model.t,
             'init_cadence_offset':                      init_cadence_offset,
             'total_num_introductions':                  totalNumIntroductions,
-            'total_num_tests_proactive':                totalNumTests_proactive,              
-            'total_num_tests_onset':                    totalNumTests_onset,                  
-            'total_num_tests_groupmate':                totalNumTests_onset_groupmate,        
-            'total_num_tests_positive_groupmate':       totalNumTests_positive_groupmate,     
-            'total_num_tests_traced':                   totalNumTests_traced,                 
-            'total_num_tests':                          totalNumTests,                        
+            'total_num_tests_proactive':                totalNumTested_proactive,              
+            'total_num_tests_onset':                    totalNumTested_onset,                  
+            'total_num_tests_groupmate':                totalNumTested_onset_groupmate,        
+            'total_num_tests_positive_groupmate':       totalNumTested_positive_groupmate,     
+            'total_num_tests_traced':                   totalNumTested_traced,                 
+            'total_num_tests_deisolation':              totalNumTested_deisolation,                 
+            'total_num_tests':                          totalNumTested,                        
             'total_num_positives_proactive':            totalNumPositives_proactive,          
             'total_num_positives_onset':                totalNumPositives_onset,              
             'total_num_positives_onset_groupmate':      totalNumPositives_onset_groupmate,    
             'total_num_positives_positive_groupmate':   totalNumPositives_positive_groupmate, 
             'total_num_positives_traced':               totalNumPositives_traced,             
+            'total_num_positives_deisolation':          totalNumPositives_deisolation,             
             'total_num_positives':                      totalNumPositives,                    
             'total_num_true_positives':                 totalNumTruePositives,                    
             'total_num_false_positives':                totalNumFalsePositives,                    
@@ -729,6 +759,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
             'total_num_isolations_positive_groupmate':  totalNumIsolations_positive_groupmate,
             'total_num_isolations_traced':              totalNumIsolations_traced,            
             'total_num_isolations':                     totalNumIsolations,
+            'total_num_deisolations':                   totalNumDeisolations,
             'peak_num_isolated':                        peakNumIsolated 
             })
 

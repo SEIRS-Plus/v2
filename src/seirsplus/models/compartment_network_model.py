@@ -26,6 +26,7 @@ class CompartmentNetworkModel():
                     isolation_period=None,
                     transition_mode='exponential_rates', 
                     local_trans_denom_mode='all_contacts',
+                    prevalence_flags=['active_infection'],
                     track_case_info=False,
                     store_Xseries=False,
                     node_groups=None,
@@ -86,7 +87,7 @@ class CompartmentNetworkModel():
         self.state_timer        = np.zeros((self.pop_size,1))
 
         # Vectors holding the isolation status and isolation time for each node:
-        self.isolation          = np.zeros(self.pop_size)
+        self.isolation          = np.zeros(self.pop_size).astype(np.int)
         self.isolation_period   = isolation_period
         self.isolation_timer    = np.zeros(self.pop_size)
         self.totalIsolationTime = np.zeros(self.pop_size)
@@ -144,6 +145,8 @@ class CompartmentNetworkModel():
         # Initialize other metadata:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.caseLogs = []
+        self.node_attributes = {}
+        self.prevalence_flags = prevalence_flags
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize counts/prevalences and the states of individuals:
@@ -451,7 +454,7 @@ class CompartmentNetworkModel():
                                             (    
                                                  (self.openness) * (transm_params['exogenous']*self.compartments[compartment]['exogenous_prevalence'])
                                              + (1-self.openness) * (
-                                                                        (self.mixedness) * ((transm_params['global']*self.counts[infectiousState][self.tidx])/self.N[self.tidx])
+                                                                        (self.mixedness) * ((transm_params['global']*np.count_nonzero((self.isolation^1)*(self.X==self.stateID[infectiousState]).flatten()))/self.N[self.tidx])   # the (self.isolation^1) inverts the 0/1 isolation vals using the ^ XOR operator; this is to exclude isolated individuals from global transmission
                                                                     + (1-self.mixedness) * (propensity_infection_local[infectiousState])
                                                                    )
                                             )
@@ -974,10 +977,10 @@ class CompartmentNetworkModel():
         self.lineages = {}
         self.nodeCaseIDs = [None]*self.pop_size
         # Set the lineage IDs of all initially infected nodes to '0' (maybe rethink later)
-        for i, initInfectedNode in enumerate(self.get_individuals_by_flag(['infected'])):
+        for i, initInfectedNode in enumerate(self.get_individuals_by_flag(self.prevalence_flags)):
             if(self.track_case_info):
                 self.add_case_to_lineage(initInfectedNode, parent=None)
-                self.add_case_log(infectee_node=initInfectedNode, infector_node=None, infection_transition={'from':self.default_state, 'to':self.get_node_compartment(exposedNode), 'type':'initialization'})
+                self.add_case_log(infectee_node=initInfectedNode, infector_node=None, infection_transition={'from':self.default_state, 'to':self.get_node_compartment(initInfectedNode), 'type':'initialization'})
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Determine the iniital counts for each flag
@@ -1221,6 +1224,13 @@ class CompartmentNetworkModel():
                     self.networks[G]['active'][i] = 1 if active else 0
                 if(active_isolation is not None):
                     self.networks[G]['active_isolation'][i] = 1 if active_isolation else 0
+
+
+    ########################################################
+
+
+    def set_node_attributes(self, attribute_name, attribute_values):
+        self.node_attributes[attribute_name] = utils.param_as_array(attribute_values, (1, self.pop_size)).flatten()
 
 
     ########################################################
@@ -1511,7 +1521,6 @@ class CompartmentNetworkModel():
             'infector_time_in_state':       self.state_timer[infector_node][0] if infector_node is not None else None,
             'infector_isolation_status':    (False if self.isolation[infector_node]==0 else True) if infector_node is not None else None,
             }
-
         #----------------------------------------
         # Log network-related information:
         infectee_contacts_overall = set()
@@ -1530,8 +1539,8 @@ class CompartmentNetworkModel():
                 'infectee_active_degree_'+network:      np.count_nonzero(np.array(bin_isGactive)[infectee_contacts]),
                 'infector_total_degree_'+network:       len(infector_contacts),
                 'infector_active_degree_'+network:      np.count_nonzero(np.array(bin_isGactive)[infector_contacts]),
-                'infector_is_contact_'+network:          (infector_node in infectee_contacts) if infector_node is not None else False,
-                'infector_transmissibility_'+network:    np.mean(self.infectivity_mat[self.get_node_compartment(infector_node)][network][infectee_node,infector_node]) if infector_node is not None else None
+                'infector_is_contact_'+network:         (infector_node in infectee_contacts) if infector_node is not None else False,
+                'infector_transmissibility_'+network:   np.mean(self.infectivity_mat[self.get_node_compartment(infector_node)]['workplace'][:,infector_node][self.infectivity_mat[self.get_node_compartment(infector_node)]['workplace'][:,infector_node] > 0]) if infector_node is not None else None
                 })
         caseLog.update({
             'infectee_total_degree_overall':    len(infectee_contacts_overall),
@@ -1540,11 +1549,17 @@ class CompartmentNetworkModel():
             'infector_active_degree_overall':   np.count_nonzero(np.array(bin_isGactive_overall)[list(infector_contacts_overall)]),
             'infector_is_contact_overall':      (infector_node in infectee_contacts_overall) if infector_node is not None else False
             })
-
         #----------------------------------------
-        # Log intervention-related information:
-
+        # Log node attribute information:
+        for attribute_name, attribute_values in self.node_attributes.items():
+            caseLog.update({
+                'infectee_'+attribute_name: attribute_values[infectee_node],
+                'infector_'+attribute_name: attribute_values[infector_node]
+                })
+        #----------------------------------------
         self.caseLogs.append(caseLog)
+        # print(self.caseLogs)
+        # exit()
 
 
     ########################################################
@@ -1567,7 +1582,7 @@ class CompartmentNetworkModel():
     ########################################################
 
 
-    def update_test_parameters(self, new_test_params='default', prevalence_flags=['infected']):
+    def update_test_parameters(self, new_test_params='default', prevalence_flags=None):
         if(isinstance(new_test_params, str) and '.json' in new_test_params):
             new_test_params = utils.load_config(new_test_params)
             # with open(new_test_params) as new_test_params_file:
@@ -1575,9 +1590,9 @@ class CompartmentNetworkModel():
         elif(isinstance(new_test_params, dict)):
             pass
         elif(new_test_params == 'default'):
-            # If no test params are given, default to a test that is 100% sensitive/specific to all compartments with the 'infected' flag:
+            # If no test params are given, default to a test that is 100% sensitive/specific to all compartments with the prevalence flag(s) given by arg or model attribute:
             new_test_params = {}
-            infectedCompartments = self.get_compartments_by_flag(prevalence_flags)
+            infectedCompartments = self.get_compartments_by_flag(prevalence_flags) if prevalence_flags is not None else self.prevalence_flags
             for compartment in self.compartments:
                 new_test_params.update({compartment: {"default_test": {"sensitivity": 1.0 if compartment in infectedCompartments else 0.0, "specificity": 1.0}}})
         elif(new_test_params is None):
@@ -1760,7 +1775,7 @@ class CompartmentNetworkModel():
             print("The vaccine series specified when calling vaccinate() is not recognized (i.e., has not been previously added to the model).")
             exit()
         for node in nodes:
-            print("vaccinating node", node)
+            # print("vaccinating node", node)
             vaxxedDestState = self.compartments[self.get_compartment_by_state_id(self.X[node])]['vaccine_series'][vaccine_series]['vaccination_transition']
             self.set_state(node, vaxxedDestState, update_data_series=False) # too slow to update data series after every node state update, will updata data series after loop
         self.update_data_series()

@@ -121,8 +121,8 @@ class SARSCoV2NetworkModel_reinfection(CompartmentNetworkModel):
                     R0_cv='default',
                     transmissibility='default',  # overrides R0 params if given
                     susceptibility='default',
-                    transmissibility_reinfection='default',  
-                    susceptibility_reinfection='default',
+                    relative_transmissibility_reinfection='default',  
+                    relative_susceptibility_reinfection='default',
                     latent_period='default',
                     presymptomatic_period='default',
                     symptomatic_period='default',
@@ -216,22 +216,19 @@ class SARSCoV2NetworkModel_reinfection(CompartmentNetworkModel):
         self.set_transmissibility(['P', 'I', 'A', 'Pr', 'Ir', 'Ar'], ['local'], transmissibility=transmissibility)
 
         # Susceptibility to reinfection parameter distributions:
-        if susceptibility_reinfection != 'default':
-            susceptibility_reinfection = utils.param_as_array(susceptibility_reinfection, (1,self.pop_size))
+        if relative_susceptibility_reinfection != 'default':
+            relative_susceptibility_reinfection = utils.param_as_array(relative_susceptibility_reinfection, (1,self.pop_size))
         else:
-            susceptibility_reinfection = np.zeros(shape=(1, self.pop_size))
-        self.set_susceptibility('R',  to=['P', 'I', 'A', 'Pr', 'Ir', 'Ar'], susceptibility=susceptibility_reinfection)
-        self.set_susceptibility('Rr', to=['P', 'I', 'A', 'Pr', 'Ir', 'Ar'], susceptibility=susceptibility_reinfection)
+            relative_susceptibility_reinfection = np.zeros(shape=(1, self.pop_size))
+        self.set_susceptibility('R',  to=['P', 'I', 'A', 'Pr', 'Ir', 'Ar'], susceptibility=np.multiply(susceptibility, relative_susceptibility_reinfection))
+        self.set_susceptibility('Rr', to=['P', 'I', 'A', 'Pr', 'Ir', 'Ar'], susceptibility=np.multiply(susceptibility, relative_susceptibility_reinfection))
 
         # Transmissibility conditional on reinefction parameter distributions:
-        if transmissibility_reinfection != 'default':
-            transmissibility_reinfection = utils.param_as_array(transmissibility_reinfection, (1,self.pop_size))
+        if relative_transmissibility_reinfection != 'default':
+            relative_transmissibility_reinfection = utils.param_as_array(relative_transmissibility_reinfection, (1,self.pop_size))
         else:
-            R0_mean = 3.0 if R0_mean == 'default' else R0_mean
-            R0_cv = 2.0 if R0_cv == 'default' else R0_cv
-            R0 = utils.gamma_dist(mean=R0_mean, coeffvar=R0_cv, N=self.pop_size)
-            transmissibility_reinfection = 1/infectious_period * R0
-        self.set_transmissibility(['Pr', 'Ir', 'Ar'], ['local'], transmissibility=transmissibility_reinfection)
+            relative_susceptibility_reinfection = np.ones(shape=(1, self.pop_size))
+        self.set_transmissibility(['Pr', 'Ir', 'Ar'], ['local'], transmissibility=np.multiply(transmissibility, relative_transmissibility_reinfection))
 
         self.mixedness = 0.2
         self.openness = 0.0
