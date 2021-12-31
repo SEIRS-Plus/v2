@@ -52,7 +52,7 @@ def gamma_dist(mean, coeffvar, N):
 
 
 # def dist_stats(dists, names=None, plot=False, bin_size=1, colors=None, reverse_plot=False):
-def dist_stats(dists, names=None):
+def dist_stats(dists, names=None, print_stats=False):
     dists  = [dists] if not isinstance(dists, list) else dists
     names  = ([names] if (names is not None and not isinstance(names, list)) else (names if names is not None else [None] * len(dists)))
     # colors = ([colors] if (colors is not None and not isinstance(colors, list)) else (colors if colors is not None else plt.rcParams["axes.prop_cycle"].by_key()["color"]))
@@ -69,16 +69,17 @@ def dist_stats(dists, names=None):
             }
         )
 
-        # print(
-        #     (name if name is not None else 'dist'+str(i+1)+':')
-        #     + " mean = %.2f, std = %.2f, 95%% CI = (%.2f, %.2f)"
-        #     % (
-        #         np.mean(dist),
-        #         np.std(dist),
-        #         np.percentile(dist, 2.5),
-        #         np.percentile(dist, 97.5),
-        #     )
-        # )
+        if(print_stats):
+            print(
+                (name if name is not None else 'dist'+str(i+1)+':')
+                + " mean = %.2f, std = %.2f, 95%% CI = (%.2f, %.2f)"
+                % (
+                    np.mean(dist),
+                    np.std(dist),
+                    np.percentile(dist, 2.5),
+                    np.percentile(dist, 97.5),
+                )
+            )
         # print()
 
         # if plot:
