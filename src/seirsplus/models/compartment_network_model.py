@@ -454,6 +454,149 @@ class CompartmentNetworkModel():
     ########################################################
 
 
+    def run_iteration_new(self, default_dt=0.1, max_dt=None, tau_step=None):
+        
+        max_dt = self.tmax if max_dt is None else max_dt
+
+        if(self.tidx >= len(self.tseries)-1):
+            # Room has run out in the timeseries storage arrays; double the size of these arrays:
+            self.increase_data_series_length()
+
+        # Update the current cumulative num cases to the value from the last time point,
+        # the value for the current time point will be updated for any new cases below:
+        self.cum_num_cases[self.tidx+1] = self.cum_num_cases[self.tidx]
+
+        # Get the number of contacts relevant for the local transmission denominator for each individual:
+        self.active_degree = np.zeros((self.pop_size, 1))
+        for netID, G in self.networks.items():
+            bool_isGactive    = (((G['active']!=0)&(self.isolation==0)) | ((G['active_isolation']!=0)&(self.isolation!=0))).flatten()
+            self.active_degree += G['adj_matrix'][:,np.argwhere(bool_isGactive).flatten()].sum(axis=1) if self.local_trans_denom_mode=='active_contacts' else G['degree']
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Calculate propensities
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        propensities, transitions = self.calc_propensities()
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Determine the time step and state update(s):
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        if(propensities.sum() > 0):
+
+            if(tau_step is not None):
+                #----------------------------------------
+                # Simplified tau-leaping Gillespie (fixed tau):
+                #----------------------------------------
+                # Set the iteration time step dt to the fixed interval tau_step:
+                dt = tau_step  
+                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                # Poisson draw the number of events for each node/transition in this interval:
+                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                numEventOccurences = np.random.poisson(lam=propensities*tau_step)
+                numEventOccurences[numEventOccurences > 0] = 1 # Events are defined by a node and a transition and therefore can occur at most once per iteration
+                # In the event that node(s) are expected to undergo more than 1 transition event in this interval,
+                # randomly select the transition event that actually occurs proportional to their propensities:
+                multiEventNodes = np.argwhere(np.sum(numEventOccurences, axis=1) >1).flatten()
+                for multiEventNode in multiEventNodes:
+                    selectedTransition = np.random.choice(range(len(transitions)), p=propensities[multiEventNode,:].flatten()/np.sum(propensities[multiEventNode,:].flatten()))
+                    numEventOccurences[multiEventNode][range(len(transitions))!=selectedTransition] = 0
+                # Place each transition event that is to occur in a list for execution below:
+                transitionEvents = []
+                for transitionNode, transitionIdx in zip(*np.where(numEventOccurences > 0)):
+                    transition = copy.deepcopy(transitions[transitionIdx])
+                    transition.update({'node': transitionNode})
+                    transitionEvents.append( transition )
+
+            else:
+                #----------------------------------------
+                # Standard Gillespie Stochastic Simulation Algorithm:
+                #----------------------------------------
+                # Generate 2 random numbers uniformly distributed in (0,1)
+                r1 = np.random.rand()
+                r2 = np.random.rand()
+                # Calculate alpha
+                propensities_flat   = propensities.ravel(order='F')
+                cumsum              = propensities_flat.cumsum()
+                alpha               = propensities_flat.sum()
+                # Compute the time until the next event takes place
+                tau = (1/alpha)*np.log(float(1/r1))
+                # Set the iteration time step dt and determine the event to take place:
+                if(tau <= max_dt):
+                    # Set the iteration time step dt to the time to next event tau:
+                    dt  = tau
+                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                    # Draw the event to take place proportional to propensities:
+                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                    transitionIdx    = np.searchsorted(cumsum,r2*alpha)
+                    transitionNode   = transitionIdx % self.pop_size
+                    transition       = transitions[ int(transitionIdx/self.pop_size) ]
+                    # Place the transition event that is to occur in a list for execution below:
+                    transition.update({'node': transitionNode})
+                    transitionEvents = [transition]
+                else: # (tau > max_dt):
+                    # Set the iteration time step dt to the max time step:
+                    dt = max_dt
+                    # No event takes place during this time step:
+                    transitionEvents = []
+
+        else: # (propensities.sum()==0):
+            # Set the iteration time step dt to the default time step:
+            dt = default_dt
+            # No event takes place during this time step:
+            transitionEvents = []
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Advance time:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        self.t           += dt
+        self.state_timer += dt
+        self.tidx        += 1
+
+        # Update isolation timers/statuses
+        i_isolated = np.argwhere(self.isolation==1).flatten()
+        self.isolation_timer[i_isolated]    += dt
+        self.totalIsolationTime[i_isolated] += dt
+        if(self.isolation_period is not None):
+            i_exitingIsolation = np.argwhere(self.isolation_timer >= self.isolation_period).flatten()
+            for i in i_exitingIsolation:
+                self.set_isolation(node=i, isolation=False)
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Perform updates triggered by event:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        print("t = %.3f" % self.t)
+        for transition in transitionEvents:
+            assert(self.X[transition['node']]==self.stateID[transition['from']]), "Assertion error: Node "+str(transition['node'])+" has unexpected current state "+str(self.X[transition['node']])+" given the intended transition of "+transition['from']+"->"+transition['to']+"."
+            self.set_state(transition['node'], transition['to']) 
+            print('   ', transition['from'], '-->', transition['to'])
+            #----------------------------------------
+            # Gather and save information about transmission events when they occur:
+            #----------------------------------------
+            if(transition['type'] == 'infection'):
+                self.cum_num_cases[self.tidx] += 1
+                if(self.track_case_info):
+                    self.process_new_case(transition['node'], transition)
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Update model data series and metadata:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        self.update_data_series()
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Terminate if tmax reached:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        if(self.t >= self.tmax):
+            self.finalize_data_series()
+            return False
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        return True
+
+
+    ########################################################
+    ########################################################
+
+
     def run_iteration(self, max_dt=None, default_dt=0.1):
 
         # time_runiter_start = time.time()

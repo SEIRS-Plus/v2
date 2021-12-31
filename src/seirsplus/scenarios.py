@@ -718,7 +718,8 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     
-            running = model.run_iteration(max_dt=max_dt)
+            # running = model.run_iteration(max_dt=max_dt)
+            running = model.run_iteration_new(tau_step=0.01)
             
             if(terminate_at_zero_cases):
                 running = running and (currentNumInfected > 0) # or currentNumIsolated > 0) if false positives occur at non-negligible rate then this ends up running for a long time after 0 true cases
