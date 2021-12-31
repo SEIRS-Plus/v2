@@ -315,6 +315,7 @@ class CompartmentNetworkModel():
 
 
     def calc_propensities(self):
+        # print("CALC PROPENSITIES")
         # time_calcprop_start = time.time()
 
         propensities     = []
@@ -322,9 +323,13 @@ class CompartmentNetworkModel():
 
         for compartment, comp_params in self.compartments.items():
 
+            # time_calcprop_comp_start = time.time()
+
             # Skip calculations for this compartment if no nodes are in this state:
             if(not np.any(self.X==self.stateID[compartment])):
                 continue
+
+            # print("time_calcprop", compartment, "A", time.time() - time_calcprop_comp_start)
 
             #----------------------------------------
             # Dict to store calcualted propensities of local infection for each infectious state
@@ -349,10 +354,18 @@ class CompartmentNetworkModel():
                 propensities.append(propensity_temporal_transition)
                 transitions.append({'from':compartment, 'to':destState, 'type':'temporal'})
 
+            # print("time_calcprop", compartment, "B", time.time() - time_calcprop_comp_start)
+
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # Calc propensities of transmission-induced transitions:
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # print("-----------------")
+            # time_calcprop_comp_local_start = time.time()
+
             for infectiousState, susc_params in comp_params['susceptibilities'].items():
+                
+                # time_calcprop_comp_inf_start = time.time()
+
                 if(infectiousState not in self.compartments):
                     print("Infectious state", infectiousState, "is not a defined compartment.")
                     continue
@@ -360,6 +373,8 @@ class CompartmentNetworkModel():
                 # Skip calculations for this infectious compartment if no nodes are in this state:
                 if(not np.any(self.X==self.stateID[infectiousState])):
                     continue
+
+                # print("      time_0", time.time() - time_calcprop_comp_inf_start)
 
                 # #----------------------------------------
                 # # Get the number of contacts relevant for the local transmission denominator for each individual:
@@ -372,6 +387,9 @@ class CompartmentNetworkModel():
                 #----------------------------------------
                 # Compute the local transmission propensity terms for individuals in each contact network
                 #----------------------------------------
+
+
+
                 if(infectiousState not in propensity_infection_local):
 
                     propensity_infection_local[infectiousState] = np.zeros((self.pop_size, 1))
@@ -389,31 +407,72 @@ class CompartmentNetworkModel():
                     #----------------------------------------
                     for netID, G in self.networks.items():
 
+                        # timenet_a = time.time()
                         M = self.infectivity_mat[infectiousState][netID]
+                        # print("        timenet_a", time.time() - timenet_a)
 
-                        #----------------------------------------
-                        # Determine which individuals need local transmission propensity calculated (active in G and infectible, non-zero propensity)
-                        # and which individuals are relevant in these calculations (active in G and infectious):
-                        #----------------------------------------
-                        bool_isGactive    = (((G['active']!=0)&(self.isolation==0)) | ((G['active_isolation']!=0)&(self.isolation!=0))).flatten()
-                        bin_isGactive     = [1 if i else 0 for i in bool_isGactive]
+                        #########################################
+                        # VERSION 1
+                        #########################################
 
-                        bool_isInfectious = (self.X==self.stateID[infectiousState]).flatten()
-                        j_isInfectious    = np.argwhere(bool_isInfectious).flatten()
+                        # #----------------------------------------
+                        # # Determine which individuals need local transmission propensity calculated (active in G and infectible, non-zero propensity)
+                        # # and which individuals are relevant in these calculations (active in G and infectious):
+                        # #----------------------------------------
+                        # bool_isGactive    = (((G['active']!=0)&(self.isolation==0)) | ((G['active_isolation']!=0)&(self.isolation!=0))).flatten()
+                        # bin_isGactive     = [1 if i else 0 for i in bool_isGactive]
 
-                        bool_hasGactiveInfectiousContacts = np.asarray(scipy.sparse.csr_matrix.dot(M, scipy.sparse.diags(bin_isGactive))[:,j_isInfectious].sum(axis=1).astype(bool)).flatten()
+                        # bool_isInfectious = (self.X==self.stateID[infectiousState]).flatten()
+                        # j_isInfectious    = np.argwhere(bool_isInfectious).flatten()
 
-                        bool_isInfectible = (bool_isGactive & bool_hasGactiveInfectiousContacts)
-                        i_isInfectible    = np.argwhere(bool_isInfectible).flatten()
+                        # bool_hasGactiveInfectiousContacts = np.asarray(scipy.sparse.csr_matrix.dot(M, scipy.sparse.diags(bin_isGactive))[:,j_isInfectious].sum(axis=1).astype(bool)).flatten()
 
+                        # bool_isInfectible = (bool_isGactive & bool_hasGactiveInfectiousContacts)
+                        # i_isInfectible    = np.argwhere(bool_isInfectible).flatten()
+
+                        # #----------------------------------------
+                        # # Compute the local transmission propensity terms for individuals in the current contact network G
+                        # #----------------------------------------
+                        # propensity_infection_local[infectiousState][i_isInfectible] += np.divide( scipy.sparse.csr_matrix.dot(M[i_isInfectible,:][:,j_isInfectious], (self.X==self.stateID[infectiousState])[j_isInfectious]), self.active_degree[i_isInfectible], out=np.zeros_like(propensity_infection_local[infectiousState][i_isInfectible]), where=self.active_degree[i_isInfectible]!=0 )
+
+
+                        #########################################
+                        # VERSION 2
+                        #   (no computing or slicing using i_isInfectible)
+                        #########################################
+
+                        # #----------------------------------------
+                        # # Determine which individuals are relevant in these calculations (active in G and infectious):
+                        # #----------------------------------------
+                        # # timenet_c = time.time()
+                        # bool_isInfectious = (self.X==self.stateID[infectiousState]).flatten()
+                        # j_isInfectious    = np.argwhere(bool_isInfectious).flatten()
+                        # # print("        timenet_c", time.time() - timenet_c)
+
+                        # #----------------------------------------
+                        # # Compute the local transmission propensity terms for individuals in the current contact network G
+                        # #----------------------------------------
+                        # # timenet_fv2 = time.time()
+                        # propensity_infection_local[infectiousState] += np.divide( scipy.sparse.csr_matrix.dot(M[:,j_isInfectious], (self.X==self.stateID[infectiousState])[j_isInfectious]), self.active_degree, out=np.zeros_like(propensity_infection_local[infectiousState]), where=self.active_degree!=0 )
+                        # # print("        timenet_fv2", time.time() - timenet_fv2)
+
+
+                        #########################################
+                        # VERSION 3
+                        #   (no computing or slicing using i_isInfectible or j_isInfectious)
+                        #########################################
+                        # !!!>>> This is the fastest for the N=1000 simulations for the Color isolation-policies memo. Test speeds at larger networks.
                         #----------------------------------------
                         # Compute the local transmission propensity terms for individuals in the current contact network G
                         #----------------------------------------
-                        propensity_infection_local[infectiousState][i_isInfectible] += np.divide( scipy.sparse.csr_matrix.dot(M[i_isInfectible,:][:,j_isInfectious], (self.X==self.stateID[infectiousState])[j_isInfectious]), self.active_degree[i_isInfectible], out=np.zeros_like(propensity_infection_local[infectiousState][i_isInfectible]), where=self.active_degree[i_isInfectible]!=0 )
+                        # timenet_fv2 = time.time()
+                        propensity_infection_local[infectiousState] += np.divide( scipy.sparse.csr_matrix.dot(M, (self.X==self.stateID[infectiousState])), self.active_degree, out=np.zeros_like(propensity_infection_local[infectiousState]), where=self.active_degree!=0 )
+                        # print("        timenet_fv2", time.time() - timenet_fv2)
 
                 #----------------------------------------
                 # Compute the propensities of infection for individuals across all transmission modes (exogenous, global, local over all networks)
                 #----------------------------------------
+                # timeeqn = time.time()
                 transm_params = self.compartments[infectiousState]['transmissibilities']
 
                 propensity_infection = ((self.X==self.stateID[compartment]) * 
@@ -427,10 +486,12 @@ class CompartmentNetworkModel():
                                                                    )
                                             )
                                         ))
+                # print("      timeeqn", time.time() - timeeqn)
 
                 #----------------------------------------
                 # Compute the propensities of each possible infection-induced transition according to the disease progression paths of each individual:
                 #----------------------------------------
+                # time_Z = time.time()
                 for destState, transition_params in susc_params['transitions'].items():
                     if(destState not in self.compartments):
                         print("Destination state", destState, "is not a defined compartment.")
@@ -440,13 +501,18 @@ class CompartmentNetworkModel():
 
                     propensities.append(propensity_infection_transition)
                     transitions.append({'from':compartment, 'to':destState, 'type':'infection'})
+                # print("      time_Z", time.time() - time_Z)
+
+                # print("  time_calcprop", compartment, infectiousState, time.time() - time_calcprop_comp_inf_start)
 
             #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+            # print("time_calcprop", compartment, "local", time.time() - time_calcprop_comp_local_start)
         
         #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         propensities = np.hstack(propensities) if len(propensities)>0 else np.array([[]])
-        # print("time_calcprop\t\t", time.time() - time_calcprop_start)
+        # print("time_calcprop", time.time() - time_calcprop_start)
         return propensities, transitions
         
 
@@ -454,17 +520,13 @@ class CompartmentNetworkModel():
     ########################################################
 
 
-    def run_iteration_new(self, default_dt=0.1, max_dt=None, tau_step=None):
+    def run_iteration(self, default_dt=0.1, max_dt=None, tau_step=None):
         
         max_dt = self.tmax if max_dt is None else max_dt
 
         if(self.tidx >= len(self.tseries)-1):
             # Room has run out in the timeseries storage arrays; double the size of these arrays:
             self.increase_data_series_length()
-
-        # Update the current cumulative num cases to the value from the last time point,
-        # the value for the current time point will be updated for any new cases below:
-        self.cum_num_cases[self.tidx+1] = self.cum_num_cases[self.tidx]
 
         # Get the number of contacts relevant for the local transmission denominator for each individual:
         self.active_degree = np.zeros((self.pop_size, 1))
@@ -551,6 +613,8 @@ class CompartmentNetworkModel():
         self.state_timer += dt
         self.tidx        += 1
 
+        # print("t = %.3f" % self.t)
+
         # Update isolation timers/statuses
         i_isolated = np.argwhere(self.isolation==1).flatten()
         self.isolation_timer[i_isolated]    += dt
@@ -560,14 +624,17 @@ class CompartmentNetworkModel():
             for i in i_exitingIsolation:
                 self.set_isolation(node=i, isolation=False)
 
+        # Update the current cumulative num cases to the value from the last time point,
+        # the value for the current time point will be updated for any new cases below:
+        self.cum_num_cases[self.tidx] = self.cum_num_cases[self.tidx-1]
+
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Perform updates triggered by event:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        print("t = %.3f" % self.t)
         for transition in transitionEvents:
             assert(self.X[transition['node']]==self.stateID[transition['from']]), "Assertion error: Node "+str(transition['node'])+" has unexpected current state "+str(self.X[transition['node']])+" given the intended transition of "+transition['from']+"->"+transition['to']+"."
             self.set_state(transition['node'], transition['to']) 
-            print('   ', transition['from'], '-->', transition['to'])
+            # print('   ', transition['from'], '-->', transition['to'])
             #----------------------------------------
             # Gather and save information about transmission events when they occur:
             #----------------------------------------
@@ -594,152 +661,6 @@ class CompartmentNetworkModel():
 
 
     ########################################################
-    ########################################################
-
-
-    def run_iteration(self, max_dt=None, default_dt=0.1):
-
-        # time_runiter_start = time.time()
-
-        max_dt = self.tmax if max_dt is None else max_dt
-
-        if(self.tidx >= len(self.tseries)-1):
-            # Room has run out in the timeseries storage arrays; double the size of these arrays:
-            self.increase_data_series_length()
-
-        # print("#  ", self.cum_num_cases[self.tidx], "->", self.cum_num_cases[self.tidx+1])
-        self.cum_num_cases[self.tidx+1] = self.cum_num_cases[self.tidx]
-        # print("##  ", self.cum_num_cases[self.tidx], "->", self.cum_num_cases[self.tidx+1])
-
-        #----------------------------------------
-        # Get the number of contacts relevant for the local transmission denominator for each individual:
-        #----------------------------------------
-        self.active_degree = np.zeros((self.pop_size, 1))
-        for netID, G in self.networks.items():
-            bool_isGactive    = (((G['active']!=0)&(self.isolation==0)) | ((G['active_isolation']!=0)&(self.isolation!=0))).flatten()
-            self.active_degree += G['adj_matrix'][:,np.argwhere(bool_isGactive).flatten()].sum(axis=1) if self.local_trans_denom_mode=='active_contacts' else G['degree']
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Generate 2 random numbers uniformly distributed in (0,1)
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        r1 = np.random.rand()
-        r2 = np.random.rand()
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Calculate propensities
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        propensities, transitions = self.calc_propensities()
-
-        if(propensities.sum() > 0):
-
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # Calculate alpha
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            propensities_flat   = propensities.ravel(order='F')
-            cumsum              = propensities_flat.cumsum()
-            alpha               = propensities_flat.sum()
-
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # Compute the time until the next event takes place
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            tau = (1/alpha)*np.log(float(1/r1))
-
-            #----------------------------------------
-            # If the time to next event exceeds the max allowed interval,
-            # advance the system time by the max allowed interval,
-            # but do not execute any events (recalculate Gillespie interval/event next iteration)
-            if(tau > max_dt):
-
-                # Advance time by max_dt step
-                self.t           += max_dt
-                self.state_timer += max_dt
-                self.tidx        += 1
-
-                # Update isolation timers/statuses
-                i_isolated = np.argwhere(self.isolation==1).flatten()
-                self.isolation_timer[i_isolated]    += max_dt
-                self.totalIsolationTime[i_isolated] += max_dt
-                if(self.isolation_period is not None):
-                    i_exitingIsolation = np.argwhere(self.isolation_timer >= self.isolation_period).flatten()
-                    for i in i_exitingIsolation:
-                        self.set_isolation(node=i, isolation=False)
-
-                # return without any further event execution
-                self.update_data_series()
-                # print("time_runiter_maxdt\t", time.time() - time_runiter_start)
-                return True
-
-                #----------------------------------------
-
-            else:
-                # Advance time by tau
-                self.t           += tau
-                self.state_timer += tau
-                self.tidx        += 1
-
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # Compute which event takes place
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            transitionIdx  = np.searchsorted(cumsum,r2*alpha)
-            transitionNode = transitionIdx % self.pop_size
-            transition     = transitions[ int(transitionIdx/self.pop_size) ]
-
-            print(transition['from'], '-->', transition['to'])
-
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # Perform updates triggered by event:
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            assert(self.X[transitionNode]==self.stateID[transition['from']]), "Assertion error: Node "+str(transitionNode)+" has unexpected current state "+str(self.X[transitionNode])+" given the intended transition of "+transition['from']+"->"+transition['to']+"."
-            self.set_state(transitionNode, transition['to']) # self.X[transitionNode] = self.stateID[transition['to']]
-
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # Gather and save information about transmission events when they occur:
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            if(transition['type'] == 'infection'):
-                self.cum_num_cases[self.tidx] += 1
-                # print("##->", self.cum_num_cases[self.tidx])
-                # exit()
-                if(self.track_case_info):
-                    self.process_new_case(transitionNode, transition)
-                
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        else: # propensities.sum() == 0
-            # No tau calculated, advance time by default step
-            tau               = default_dt
-            self.t           += tau
-            self.state_timer += tau
-            self.tidx        += 1
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
-        self.update_data_series()
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        # Update isolation timers/statuses
-        i_isolated = np.argwhere(self.isolation==1).flatten()
-        self.isolation_timer[i_isolated]    += tau
-        self.totalIsolationTime[i_isolated] += tau
-        if(self.isolation_period is not None):
-            i_exitingIsolation = np.argwhere(self.isolation_timer >= self.isolation_period).flatten()
-            for i in i_exitingIsolation:
-                self.set_isolation(node=i, isolation=False)
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Terminate if tmax reached:
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        if(self.t >= self.tmax):
-            self.finalize_data_series()
-            # print("time_runiter_final\t", time.time() - time_runiter_start)
-            return False
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        # print("time_runiter_stddt\t", time.time() - time_runiter_start)
-        return True
-
-
     ########################################################
 
 
@@ -847,7 +768,7 @@ class CompartmentNetworkModel():
         self.tseries = np.pad(self.tseries, [(0, self.pop_size*min(len(self.compartments), 10))], mode='constant', constant_values=0)
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Allocate more entries for the cumulative num cases series:
-        self.cum_num_cases = np.pad(self.tseries, [(0, self.pop_size*min(len(self.compartments), 10))], mode='constant', constant_values=0)
+        self.cum_num_cases = np.pad(self.cum_num_cases, [(0, self.pop_size*min(len(self.compartments), 10))], mode='constant', constant_values=0)
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Allocate more entries for the data series of counts of nodes in each compartment:
         for compartment in self.compartments:

@@ -5,7 +5,8 @@ from seirsplus import utils
 import time
 
 
-def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_at_zero_cases=False,
+def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=None,
+                                    terminate_at_zero_cases=False,
                                     # Intervention timing params:
                                     cadence_dt=1, 
                                     cadence_cycle_length=28,
@@ -718,8 +719,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     
-            # running = model.run_iteration(max_dt=max_dt)
-            running = model.run_iteration_new(tau_step=0.01)
+            running = model.run_iteration(max_dt=max_dt, default_dt=default_dt, tau_step=tau_step)
             
             if(terminate_at_zero_cases):
                 running = running and (currentNumInfected > 0) # or currentNumIsolated > 0) if false positives occur at non-negligible rate then this ends up running for a long time after 0 true cases
