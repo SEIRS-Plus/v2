@@ -454,6 +454,34 @@ class CompartmentNetworkModel():
     ########################################################
 
 
+    def run_iteration_new(self, default_dt=0.1, max_dt=None, tau_step=None):
+        # time_runiter_start = time.time()
+
+        max_dt = self.tmax if max_dt is None else max_dt
+
+        if(self.tidx >= len(self.tseries)-1):
+            # Room has run out in the timeseries storage arrays; double the size of these arrays:
+            self.increase_data_series_length()
+
+        # Update the current cumulative num cases to the value from the last time point,
+        # the value for the current time point will be updated for any new cases below:
+        self.cum_num_cases[self.tidx+1] = self.cum_num_cases[self.tidx]
+
+        # Get the number of contacts relevant for the local transmission denominator for each individual:
+        self.active_degree = np.zeros((self.pop_size, 1))
+        for netID, G in self.networks.items():
+            bool_isGactive    = (((G['active']!=0)&(self.isolation==0)) | ((G['active_isolation']!=0)&(self.isolation!=0))).flatten()
+            self.active_degree += G['adj_matrix'][:,np.argwhere(bool_isGactive).flatten()].sum(axis=1) if self.local_trans_denom_mode=='active_contacts' else G['degree']
+
+
+
+
+
+
+    ########################################################
+    ########################################################
+
+
     def run_iteration(self, max_dt=None, default_dt=0.1):
 
         # time_runiter_start = time.time()
@@ -622,7 +650,7 @@ class CompartmentNetworkModel():
 
             print(self.t)
 
-            running = self.run_iteration(max_dt, default_dt)
+            running = self.run_iteration(max_dt=max_dt, default_dt=default_dt)
 
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # Handle checkpoints if applicable:

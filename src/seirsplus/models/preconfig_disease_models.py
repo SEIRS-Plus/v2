@@ -107,7 +107,7 @@ class SARSCoV2NetworkModel(CompartmentNetworkModel):
         self.mixedness = 0.2
         self.openness = 0.0
 
-        self.isolation_period = 10
+        self.isolation_period = 10 if isolation_period == 'default' else isolation_period
 
 
 ####################################################
@@ -233,6 +233,6 @@ class SARSCoV2NetworkModel_reinfection(CompartmentNetworkModel):
         self.mixedness = 0.2
         self.openness = 0.0
 
-        self.isolation_period = 10
+        self.isolation_period = 10 if isolation_period == 'default' else isolation_period
 
 

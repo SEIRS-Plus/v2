@@ -78,6 +78,9 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
         else:
             return False
 
+        if(max_dt is None and model.transition_mode=='time_in_state'):
+            max_dt = cadence_dt
+
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize intervention parameters:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -718,7 +721,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, terminate_a
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     
-            running = model.run_iteration(max_dt=max_dt)
+            running = model.run_iteration(max_dt=max_dt, default_dt=default_dt)
             
             if(terminate_at_zero_cases):
                 running = running and (currentNumInfected > 0) # or currentNumIsolated > 0) if false positives occur at non-negligible rate then this ends up running for a long time after 0 true cases
