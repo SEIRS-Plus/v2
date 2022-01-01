@@ -1302,8 +1302,15 @@ class CompartmentNetworkModel():
     ########################################################
 
 
-    def set_node_attributes(self, attribute_name, attribute_values):
-        self.node_attributes[attribute_name] = utils.param_as_array(attribute_values, (1, self.pop_size)).flatten()
+    def set_node_attribute(self, node, attribute_name, attribute_value):
+        nodes = list(range(self.pop_size)) if (isinstance(node, str) and node=='all') else utils.treat_as_list(node)
+        avals = utils.treat_as_list(attribute_value)
+        if(attribute_name not in self.node_attributes):
+            self.node_attributes[attribute_name] = np.full(shape=self.pop_size, fill_value=None)
+        for i, node in enumerate(nodes):
+            self.node_attributes[attribute_name][node] = attribute_value[i]
+
+        # self.node_attributes[attribute_name] = utils.param_as_array(attribute_values, (1, self.pop_size)).flatten()
 
 
     ########################################################
@@ -1317,6 +1324,24 @@ class CompartmentNetworkModel():
             stateID     = self.X[node][0]
             compartments.append( list(self.stateID.keys())[list(self.stateID.values()).index(stateID)] )
         return compartments if node_list_provided else compartments[0] if len(compartments)>0 else None
+
+
+    ########################################################
+
+
+    def get_individuals_by_compartment(self, compartment, combine='any'):
+        compartments = utils.treat_as_list(compartment)
+        compartment_individuals_sets = []
+        for compartment in compartments:
+            compartment_individuals = set( np.where(np.in1d(self.X, [self.stateID[c] for c in compartments]))[0] )
+            compartment_individuals_sets.append(compartment_individuals)
+        if(combine=='any'):
+            return list( set().union(*compartment_individuals_sets) )
+        elif(combine=='all'): 
+            return list( set(range(self.pop_size)).intersection(*compartment_individuals_sets) )
+        else:
+            print("Combine mode", combine, "not recognized: support for 'any' (default) or 'all'.")
+            exit()
 
 
     ########################################################
