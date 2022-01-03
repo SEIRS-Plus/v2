@@ -45,6 +45,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                                     test_type_deisolation=None, 
                                     test_result_delay=0,
                                     proactive_testing_cadence='never',
+                                    proactive_testing_synchronize=True,
                                     num_deisolation_tests=1,
                                     testing_capacity_max=1.0,
                                     testing_capacity_proactive=0.0,
@@ -142,7 +143,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
         #----------------------------------------
         # Initialize testing parameters:
         #----------------------------------------
-
         model.update_test_parameters(test_params, prevalence_flags=prevalence_flags)
 
         test_type_onset       = test_type_onset if test_type_onset is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
@@ -153,6 +153,10 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
         test_result_delay     = {test_type: test_result_delay for test_type in model.test_types} if not isinstance(test_result_delay, dict) else test_result_delay
 
         proactiveTestingTimes = [cadence_presets[individual_cadence] for individual_cadence in proactive_testing_cadence] if isinstance(proactive_testing_cadence, (list, np.ndarray)) else [cadence_presets[proactive_testing_cadence]]*model.pop_size
+        if(not proactive_testing_synchronize):
+            print("scatter")
+            for i, individualCadence in enumerate(proactiveTestingTimes):
+                proactiveTestingTimes[i] = np.sort(np.fmod(individualCadence + np.random.choice(range(cadence_cycle_length)), cadence_cycle_length))
 
         #----------------------------------------
         # Initialize individual compliances:
@@ -242,6 +246,11 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
         totalNumIntroductions                 = 0
         peakNumIsolated                       = 0
 
+        #----------------------------------------
+        # Initialize other metadata:
+        #----------------------------------------
+        individual_testing_times = [ [] for i in range(model.pop_size) ]
+        individual_tracing_times = [ [] for i in range(model.pop_size) ]
 
         #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         # Run the simulation loop:
@@ -377,6 +386,9 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                         tracingCohort = tracingQueue.pop(0)
                         if(len(tracingCohort) > 0 and (any(isolation_compliance_traced) or any(testing_compliance_traced))):
                             for tracedIndividual in tracingCohort:
+                                individual_tracing_times[tracedIndividual].append(model.t)
+                                model.set_node_attribute(node=tracedIndividual, attribute_name='num_traces', attribute_value=len(individual_tracing_times[tracedIndividual]))
+                                model.set_node_attribute(node=tracedIndividual, attribute_name='time_of_last_trace', attribute_value=individual_tracing_times[tracedingIndividual][-1])
                                 #---------------------------------------------
                                 # Isolate individual upon being traced:
                                 #---------------------------------------------
@@ -442,17 +454,22 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                         if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
                             break
                         if(testIndividual not in testedIndividuals):
-                            testResult, testTrueness = model.test(testIndividual, test_type_onset)
+                            testResult, testValidity = model.test(testIndividual, test_type_onset)
                             numTested_onset += 1
                             testedIndividuals.add(testIndividual)
+                            individual_testing_times[testIndividual].append(model.t)
+                            model.set_node_attribute(node=testIndividual, attribute_name='num_tests', attribute_value=len(individual_testing_times[testIndividual]))
+                            model.set_node_attribute(node=testIndividual, attribute_name='time_of_last_test', attribute_value=individual_testing_times[testIndividual][-1])
+                            model.set_node_attribute(node=testIndividual, attribute_name='result_of_last_test', attribute_value=testResult)
+                            model.set_node_attribute(node=testIndividual, attribute_name='validity_of_last_test', attribute_value=testValidity)
                             if(testResult == True):
                                 positiveIndividuals.add(testIndividual)
                                 positiveResultSet[test_type_onset].add(testIndividual)
                                 numPositive_onset += 1
-                            if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
-                            elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
-                            elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
-                            elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
+                            if(testResult==True and testValidity==True):     totalNumTruePositives += 1
+                            elif(testResult==True and testValidity==False):  totalNumFalsePositives += 1
+                            elif(testResult==False and testValidity==True):  totalNumTrueNegatives += 1
+                            elif(testResult==False and testValidity==False): totalNumFalseNegatives += 1
                     #---------------------------------------------
                     # Administer onset groupmate tests:
                     #---------------------------------------------
@@ -463,17 +480,22 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                         if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
                             break
                         if(testIndividual not in testedIndividuals):
-                            testResult, testTrueness = model.test(testIndividual, test_type_onset_groupmate)
+                            testResult, testValidity = model.test(testIndividual, test_type_onset_groupmate)
                             numTested_onset_groupmate += 1
                             testedIndividuals.add(testIndividual)
+                            individual_testing_times[testIndividual].append(model.t)
+                            model.set_node_attribute(node=testIndividual, attribute_name='num_tests', attribute_value=len(individual_testing_times[testIndividual]))
+                            model.set_node_attribute(node=testIndividual, attribute_name='time_of_last_test', attribute_value=individual_testing_times[testIndividual][-1])
+                            model.set_node_attribute(node=testIndividual, attribute_name='result_of_last_test', attribute_value=testResult)
+                            model.set_node_attribute(node=testIndividual, attribute_name='validity_of_last_test', attribute_value=testValidity)
                             if(testResult == True):
                                 positiveIndividuals.add(testIndividual)
                                 positiveResultSet[test_type_onset_groupmate].add(testIndividual)
                                 numPositive_onset_groupmate += 1
-                            if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
-                            elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
-                            elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
-                            elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
+                            if(testResult==True and testValidity==True):     totalNumTruePositives += 1
+                            elif(testResult==True and testValidity==False):  totalNumFalsePositives += 1
+                            elif(testResult==False and testValidity==True):  totalNumTrueNegatives += 1
+                            elif(testResult==False and testValidity==False): totalNumFalseNegatives += 1
                     #---------------------------------------------
                     # Administer positive groupmate tests:
                     #---------------------------------------------
@@ -484,17 +506,22 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                         if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
                             break
                         if(testIndividual not in testedIndividuals):
-                            testResult, testTrueness = model.test(testIndividual, test_type_positive_groupmate)
+                            testResult, testValidity = model.test(testIndividual, test_type_positive_groupmate)
                             numTested_positive_groupmate += 1
                             testedIndividuals.add(testIndividual)
+                            individual_testing_times[testIndividual].append(model.t)
+                            model.set_node_attribute(node=testIndividual, attribute_name='num_tests', attribute_value=len(individual_testing_times[testIndividual]))
+                            model.set_node_attribute(node=testIndividual, attribute_name='time_of_last_test', attribute_value=individual_testing_times[testIndividual][-1])
+                            model.set_node_attribute(node=testIndividual, attribute_name='result_of_last_test', attribute_value=testResult)
+                            model.set_node_attribute(node=testIndividual, attribute_name='validity_of_last_test', attribute_value=testValidity)
                             if(testResult == True):
                                 positiveIndividuals.add(testIndividual)
                                 positiveResultSet[test_type_positive_groupmate].add(testIndividual)
                                 numPositive_positive_groupmate += 1
-                            if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
-                            elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
-                            elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
-                            elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
+                            if(testResult==True and testValidity==True):     totalNumTruePositives += 1
+                            elif(testResult==True and testValidity==False):  totalNumFalsePositives += 1
+                            elif(testResult==False and testValidity==True):  totalNumTrueNegatives += 1
+                            elif(testResult==False and testValidity==False): totalNumFalseNegatives += 1
                     #---------------------------------------------
                     # Administer tracing tests:
                     #---------------------------------------------
@@ -506,17 +533,22 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                             if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
                                 break
                             if(testIndividual not in testedIndividuals):
-                                testResult, testTrueness = model.test(testIndividual, test_type_traced)
+                                testResult, testValidity = model.test(testIndividual, test_type_traced)
                                 numTested_traced += 1
                                 testedIndividuals.add(testIndividual)
+                                individual_testing_times[testIndividual].append(model.t)
+                                model.set_node_attribute(node=testIndividual, attribute_name='num_tests', attribute_value=len(individual_testing_times[testIndividual]))
+                                model.set_node_attribute(node=testIndividual, attribute_name='time_of_last_test', attribute_value=individual_testing_times[testIndividual][-1])
+                                model.set_node_attribute(node=testIndividual, attribute_name='result_of_last_test', attribute_value=testResult)
+                                model.set_node_attribute(node=testIndividual, attribute_name='validity_of_last_test', attribute_value=testValidity)
                                 if(testResult == True):
                                     positiveIndividuals.add(testIndividual)
                                     positiveResultSet[test_type_traced].add(testIndividual)
                                     numPositive_traced += 1
-                                if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
-                                elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
-                                elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
-                                elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
+                                if(testResult==True and testValidity==True):     totalNumTruePositives += 1
+                                elif(testResult==True and testValidity==False):  totalNumFalsePositives += 1
+                                elif(testResult==False and testValidity==True):  totalNumTrueNegatives += 1
+                                elif(testResult==False and testValidity==False): totalNumFalseNegatives += 1
                     #---------------------------------------------
                     # Administer proactive tests:
                     #---------------------------------------------
@@ -527,17 +559,22 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                         if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
                             break
                         if(testIndividual not in testedIndividuals):
-                            testResult, testTrueness = model.test(testIndividual, test_type_proactive)
+                            testResult, testValidity = model.test(testIndividual, test_type_proactive)
                             numTested_proactive += 1
                             testedIndividuals.add(testIndividual)
+                            individual_testing_times[testIndividual].append(model.t)
+                            model.set_node_attribute(node=testIndividual, attribute_name='num_tests', attribute_value=len(individual_testing_times[testIndividual]))
+                            model.set_node_attribute(node=testIndividual, attribute_name='time_of_last_test', attribute_value=individual_testing_times[testIndividual][-1])
+                            model.set_node_attribute(node=testIndividual, attribute_name='result_of_last_test', attribute_value=testResult)
+                            model.set_node_attribute(node=testIndividual, attribute_name='validity_of_last_test', attribute_value=testValidity)
                             if(testResult == True):
                                 positiveIndividuals.add(testIndividual)
                                 positiveResultSet[test_type_proactive].add(testIndividual)
                                 numPositive_proactive += 1
-                            if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
-                            elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
-                            elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
-                            elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
+                            if(testResult==True and testValidity==True):     totalNumTruePositives += 1
+                            elif(testResult==True and testValidity==False):  totalNumFalsePositives += 1
+                            elif(testResult==False and testValidity==True):  totalNumTrueNegatives += 1
+                            elif(testResult==False and testValidity==False): totalNumFalseNegatives += 1
                     #---------------------------------------------
                     # Administer de-isolation checkpoint tests:
                     #---------------------------------------------
@@ -549,22 +586,24 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                         for testIndividual in testingCohort_deisolation:
                             if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
                                 break
-                            # print("DEISO CHECK TEST", testIndividual)
                             testedIndividuals.add(testIndividual)
                             numTested_deisolation += 1
                             numNegativeResults = 0
                             for test_rep in range(num_deisolation_tests):
-                                testResult, testTrueness = model.test(testIndividual, test_type_deisolation)
-                                # print("\t", testResult)
+                                testResult, testValidity = model.test(testIndividual, test_type_deisolation)
+                                individual_testing_times[testIndividual].append(model.t)
+                                model.set_node_attribute(node=testIndividual, attribute_name='num_tests', attribute_value=len(individual_testing_times[testIndividual]))
+                                model.set_node_attribute(node=testIndividual, attribute_name='time_of_last_test', attribute_value=individual_testing_times[testIndividual][-1])
+                                model.set_node_attribute(node=testIndividual, attribute_name='result_of_last_test', attribute_value=testResult)
+                                model.set_node_attribute(node=testIndividual, attribute_name='validity_of_last_test', attribute_value=testValidity)
                                 if(testResult==False):
                                     numNegativeResults += 1
-                                if(testResult==True and testTrueness==True):     totalNumTruePositives += 1
-                                elif(testResult==True and testTrueness==False):  totalNumFalsePositives += 1
-                                elif(testResult==False and testTrueness==True):  totalNumTrueNegatives += 1
-                                elif(testResult==False and testTrueness==False): totalNumFalseNegatives += 1
+                                if(testResult==True and testValidity==True):     totalNumTruePositives += 1
+                                elif(testResult==True and testValidity==False):  totalNumFalsePositives += 1
+                                elif(testResult==False and testValidity==True):  totalNumTrueNegatives += 1
+                                elif(testResult==False and testValidity==False): totalNumFalseNegatives += 1
                             if(numNegativeResults==num_deisolation_tests):
                                 # Set this individual to exit isolation:
-                                # print(">>>> deisolate", testIndividual)
                                 model.set_isolation(testIndividual, False)
                                 numDeisolating += 1
                             else:
@@ -736,6 +775,8 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         model.finalize_data_series()    # this function populates the model.results dict with basic stats
+
+        #---------------------------------------------
 
         model.results.update({ 
             'sim_duration':                             model.t,

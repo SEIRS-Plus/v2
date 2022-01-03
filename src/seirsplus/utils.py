@@ -2,40 +2,40 @@
 import numpy as np
 import json
 try:
-	import importlib.resources as pkg_resources
+    import importlib.resources as pkg_resources
 except ImportError:
-	# Try backported to PY<37 `importlib_resources`.
-	import importlib_resources as pkg_resources
+    # Try backported to PY<37 `importlib_resources`.
+    import importlib_resources as pkg_resources
 # Internal Libraries
 from seirsplus.models import configs
 
 
 def load_config(filename):
-	try:
-		with pkg_resources.open_text(configs, filename) as cfg_file:
-			if('.json' in filename):
-				cfg_dict = json.load(cfg_file)
-				return cfg_dict
-			elif('.csv' in filename):
-				cfg_array = np.genfromtxt(cfg_file, delimiter=',')
-				return cfg_array
-			elif('.tsv' in filename):
-				cfg_array = np.genfromtxt(cfg_file, delimiter='\t')
-				return cfg_array
-			else:
-				print("load_config error: File type not supported (support for .json, .csv, .tsv)")
-				exit()
-	except FileNotFoundError:
-		print("load_config error: Config file \'"+filename+"\' not found in seirsplus.models.configs.")
-		exit()
+    try:
+        with pkg_resources.open_text(configs, filename) as cfg_file:
+            if('.json' in filename):
+                cfg_dict = json.load(cfg_file)
+                return cfg_dict
+            elif('.csv' in filename):
+                cfg_array = np.genfromtxt(cfg_file, delimiter=',')
+                return cfg_array
+            elif('.tsv' in filename):
+                cfg_array = np.genfromtxt(cfg_file, delimiter='\t')
+                return cfg_array
+            else:
+                print("load_config error: File type not supported (support for .json, .csv, .tsv)")
+                exit()
+    except FileNotFoundError:
+        print("load_config error: Config file \'"+filename+"\' not found in seirsplus.models.configs.")
+        exit()
 
 
 def treat_as_list(val):
-	return [val] if (not isinstance(val, (list, np.ndarray)) and val is not None) else val
+    return [val] if (not isinstance(val, (list, np.ndarray)) and val is not None) else val
 
 
 def param_as_array(param, shape):
-	return np.array(param).reshape(shape) if isinstance(param, (list, np.ndarray)) else np.full(fill_value=param, shape=shape)
+    return np.array(param).reshape(shape) if isinstance(param, (list, np.ndarray)) else np.full(fill_value=param, shape=shape)
 
 
 def param_as_bool_array(param, shape):
@@ -102,7 +102,7 @@ def dist_stats(dists, names=None, print_stats=False):
 
 
 # def network_stats(networks, names=None, calc_avg_path_length=False, calc_num_connected_comps=False, plot=False, bin_size=1, colors=None, reverse_plot=False):
-def network_stats(networks, names=None, calc_avg_path_length=False, calc_num_connected_comps=False):
+def network_stats(networks, names=None, calc_avg_path_length=False, calc_connected_components=False):
     import networkx
     networks = [networks] if not isinstance(networks, list) else networks
     names    = ['']*len(networks) if names is None else [names] if not isinstance(names, list) else names
@@ -125,38 +125,54 @@ def network_stats(networks, names=None, calc_avg_path_length=False, calc_num_con
         try: 
             assortativity   = networkx.degree_assortativity_coefficient(network)  
         except: 
-            assortativity   = np.nan
+            assortativity   = None
         
         try: 
             cluster_coeff   = networkx.average_clustering(network)                
         except: 
-            cluster_coeff   = np.nan
+            cluster_coeff   = None
         
         if(calc_avg_path_length):
             try: 
                 avg_path_length = networkx.average_shortest_path_length(network)      
             except: 
-                avg_path_length = np.nan
+                avg_path_length = None
         else:
-            avg_path_length = np.nan
+            avg_path_length = None
 
-        if(calc_num_connected_comps):
+        # if(calc_num_connected_comps):
+        #     try:
+        #         num_connected_comps = networkx.algorithms.components.number_connected_components(network)
+        #     except:
+        #         num_connected_comps = None
+        # else:
+        #     num_connected_comps = None
+        
+        if(calc_connected_components):
             try:
-                num_connected_comps = networkx.algorithms.components.number_connected_components(network)
+                connected_components      = sorted(networkx.connected_components(network), key=len, reverse=True)
+                num_connected_components  = len(connected_components)
+                connected_component_sizes = [len(comp) for comp in connected_components]
             except:
-                num_connected_comps = np.nan
+                num_connected_components  = None
+                connected_component_sizes = None
         else:
-            num_connected_comps = np.nan
+            num_connected_components  = None
+            connected_component_sizes = None
 
-        stats.update( { 'degree_mean'+('_'+name if len(name)>0 else ''):          degree_mean,
-                        'degree_stdev'+('_'+name if len(name)>0 else ''):         degree_stdev,
-                        'degree_95CI'+('_'+name if len(name)>0 else ''):          degree_95CI,
-                        'degree_CV'+('_'+name if len(name)>0 else ''):            degree_CV,
-                        'degree_CV2'+('_'+name if len(name)>0 else ''):           degree_CV2,
-                        'assortativity'+('_'+name if len(name)>0 else ''):        assortativity,
-                        'cluster_coeff'+('_'+name if len(name)>0 else ''):        cluster_coeff,
-                        'avg_path_length'+('_'+name if len(name)>0 else ''):      avg_path_length,
-                        'num_connected_comps'+('_'+name if len(name)>0 else ''):  num_connected_comps  } )
+        stats.update( { (name+'_' if len(name)>0 else '')+'degree_mean':          degree_mean,
+                        (name+'_' if len(name)>0 else '')+'degree_stdev':         degree_stdev,
+                        (name+'_' if len(name)>0 else '')+'degree_95CI':          degree_95CI,
+                        (name+'_' if len(name)>0 else '')+'degree_CV':            degree_CV,
+                        (name+'_' if len(name)>0 else '')+'degree_CV2':           degree_CV2,
+                        (name+'_' if len(name)>0 else '')+'assortativity':        assortativity,
+                        (name+'_' if len(name)>0 else '')+'cluster_coeff':        cluster_coeff,
+                        (name+'_' if len(name)>0 else '')+'avg_path_length':      avg_path_length,
+                        (name+'_' if len(name)>0 else '')+'num_connected_components':  num_connected_components,
+                        (name+'_' if len(name)>0 else '')+'mean_connected_component_size':  np.mean(connected_component_sizes) if connected_component_sizes != None else None,
+                        (name+'_' if len(name)>0 else '')+'median_connected_component_size':  np.median(connected_component_sizes) if connected_component_sizes != None else None,
+                        (name+'_' if len(name)>0 else '')+'min_connected_component_size':  np.min(connected_component_sizes) if connected_component_sizes != None else None,
+                        (name+'_' if len(name)>0 else '')+'max_connected_component_size':  np.max(connected_component_sizes) if connected_component_sizes != None else None  } )
 
         # if(name):
         #     print(name+":")

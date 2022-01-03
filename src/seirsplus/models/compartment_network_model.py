@@ -1308,7 +1308,7 @@ class CompartmentNetworkModel():
         if(attribute_name not in self.node_attributes):
             self.node_attributes[attribute_name] = np.full(shape=self.pop_size, fill_value=None)
         for i, node in enumerate(nodes):
-            self.node_attributes[attribute_name][node] = attribute_value[i]
+            self.node_attributes[attribute_name][node] = avals[i]
 
         # self.node_attributes[attribute_name] = utils.param_as_array(attribute_values, (1, self.pop_size)).flatten()
 
@@ -1652,7 +1652,7 @@ class CompartmentNetworkModel():
         for attribute_name, attribute_values in self.node_attributes.items():
             caseLog.update({
                 'infectee_'+attribute_name: attribute_values[infectee_node],
-                'infector_'+attribute_name: attribute_values[infector_node]
+                'infector_'+attribute_name: attribute_values[infector_node] if(infector_node is not None) else None
                 })
         #----------------------------------------
         self.caseLogs.append(caseLog)

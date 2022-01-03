@@ -81,7 +81,7 @@ def generate_workplace_contact_network(N, num_cohorts=1, num_nodes_per_cohort=10
             # Add intercohort edges:
             if(len(cohortNetworks) > 1):
                 for d in list(range(i_interCohortDegree)):
-                    j = numpy.random.choice(list(range(0, cohortStartIdx))+list(range(cohortFinalIdx+1, N)))
+                    j = np.random.choice(list(range(0, cohortStartIdx))+list(range(cohortFinalIdx+1, N)))
                     workplaceNetwork.add_edge(i, j)
 
     network_info = { 'cohorts_indices': cohorts_indices,
@@ -710,12 +710,24 @@ def generate_community_networks(
 # plt.show()
 
 
-def apply_social_distancing(network, contact_retention_prob):
-    for node in network.nodes():
-        print(network.edges(node))
-    for edge in network.edges():
-        print(edge)
-    
+def apply_social_distancing(network, contact_drop_prob, distancing_compliance=True):
+    # Initialize social distancing compliances:
+    distancing_compliance = param_as_bool_array(distancing_compliance, (1, network.number_of_nodes())).flatten()
+    # Store compliances as node attributes in the model object (e.g., for case logging purposes)
+    # model.set_node_attribute(node=list(range(network.number_of_nodes())), attribute_name='distancing_compliance', attribute_value=distancing_compliance)
+    # Get lists of pre-distancing edges for all nodes:
+    edges_orig = [list(network.edges(node)) for node in network.nodes()]
+    # Go through individuals and randomly drop the designated proportion of their edges (if compliant):
+    for i in range(network.number_of_nodes()):
+        if(distancing_compliance[i]==True):
+            for edge in edges_orig[i]:    
+                if(np.random.rand() < contact_drop_prob):
+                    try:
+                        network.remove_edge(edge[0], edge[1])
+                    except networkx.NetworkXError: 
+                        # this error type is raised when the edge passed to remove_edge does not exist
+                        pass
+        
 
 
 
