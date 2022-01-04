@@ -1,0 +1,25 @@
+{
+	"S":{
+			"transitions": 			{},
+			"transmissibilities": 	{},
+			"susceptibilities": 	{"I": {"susceptibility":1.0, "transitions": {"E": {"prob":1.0}}}},
+			"default_state": 		true,
+			"flags": 				["susceptible"]
+	    },
+	"E":{
+			"transitions": 			{"I": {"prob":1.0, "time":3.0}},
+			"transmissibilities": 	{"network": 0.0, "exogenous": 0.0},
+			"susceptibilities": 	{},
+			"initial_prevalence": 	0.0,
+			"exogenous_prevalence": 0.0,
+			"flags": 				["infected"]
+		},
+	"I":{
+			"transitions": 			{"E": {"prob":1.0, "time":4.0}},
+			"transmissibilities": 	{"network": 0.5, "exogenous": 0.0},
+			"susceptibilities": 	{},
+			"initial_prevalence": 	0.0,
+			"exogenous_prevalence": 0.0,
+			"flags": 				["infected", "infectious"]
+		}
+}
