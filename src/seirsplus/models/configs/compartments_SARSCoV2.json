@@ -14,7 +14,7 @@
 			"susceptibilities": 	{},
 			"initial_prevalence": 	0.0,
 			"exogenous_prevalence": 0.0,
-			"flags": 				["infected"]
+			"flags": 				["infected", "active_infection"]
 		},
 	"P":{
 			"transitions": 			{"I": {"prob":0.6, "time":2.2},
@@ -23,7 +23,7 @@
 			"susceptibilities": 	{},
 			"initial_prevalence": 	0.0,
 			"exogenous_prevalence": 0.0,
-			"flags": 				["infected", "infectious"]
+			"flags": 				["infected", "infectious", "active_infection"]
 		},
 	"I":{
 			"transitions": 			{"R": {"prob":1.0, "time":4.0}},			
@@ -31,7 +31,7 @@
 			"susceptibilities": 	{},
 			"initial_prevalence": 	0.0,
 			"exogenous_prevalence": 0.0,
-			"flags": 				["infected", "infectious"]
+			"flags": 				["infected", "infectious", "active_infection"]
 		},
 	"A":{
 			"transitions": 			{"R": {"prob":1.0, "time":4.0}},			
@@ -39,7 +39,7 @@
 			"susceptibilities": 	{},
 			"initial_prevalence": 	0.0,
 			"exogenous_prevalence": 0.0,
-			"flags": 				["infected", "infectious"]
+			"flags": 				["infected", "infectious", "active_infection"]
 		},
 	"R":{
 			"transitions": 			{},			

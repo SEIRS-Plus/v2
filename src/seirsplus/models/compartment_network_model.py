@@ -615,15 +615,6 @@ class CompartmentNetworkModel():
 
         # print("t = %.3f" % self.t)
 
-        # Update isolation timers/statuses
-        i_isolated = np.argwhere(self.isolation==1).flatten()
-        self.isolation_timer[i_isolated]    += dt
-        self.totalIsolationTime[i_isolated] += dt
-        if(self.isolation_period is not None):
-            i_exitingIsolation = np.argwhere(self.isolation_timer >= self.isolation_period).flatten()
-            for i in i_exitingIsolation:
-                self.set_isolation(node=i, isolation=False)
-
         # Update the current cumulative num cases to the value from the last time point,
         # the value for the current time point will be updated for any new cases below:
         self.cum_num_cases[self.tidx] = self.cum_num_cases[self.tidx-1]
@@ -642,6 +633,17 @@ class CompartmentNetworkModel():
                 self.cum_num_cases[self.tidx] += 1
                 if(self.track_case_info):
                     self.process_new_case(transition['node'], transition)
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Update isolation timers/statuses:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        i_isolated = np.argwhere(self.isolation==1).flatten()
+        self.isolation_timer[i_isolated]    += dt
+        self.totalIsolationTime[i_isolated] += dt
+        if(self.isolation_period is not None):
+            i_exitingIsolation = np.argwhere(self.isolation_timer >= self.isolation_period).flatten()
+            for i in i_exitingIsolation:
+                self.set_isolation(node=i, isolation=False)
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update model data series and metadata:
@@ -1535,7 +1537,6 @@ class CompartmentNetworkModel():
             if(infection_transition['to'] in susc_params['transitions'] and susc_params['transitions'][infection_transition['to']]['prob'][infectee_node]>0):
                 bool_inInfectiousState = (self.X==self.stateID[infectiousState]).flatten()
                 bin_inInfectiousState  = [1 if i else 0 for i in bool_inInfectiousState]
-                j_inInfectiousState    = np.argwhere(bool_inInfectiousState).flatten()
                 #----------------------------------------
                 # Calulate Exogenous transmission propensity weights:
                 # print("exogenous_prevalence", self.compartments[infectiousState]['exogenous_prevalence'])
@@ -1543,16 +1544,26 @@ class CompartmentNetworkModel():
                 infectivityWts_exogenous += self.openness *  self.compartments[infectiousState]['transmissibilities']['exogenous'] * self.compartments[infectiousState]['exogenous_prevalence']
                 #----------------------------------------
                 # Calulate Global transmission propensity weights:
-                infectivityWts_global[j_inInfectiousState] += ((1-self.openness) * ((self.mixedness) * ((self.compartments[infectiousState]['transmissibilities']['global']*self.counts[infectiousState][self.tidx])/self.N[self.tidx])))
+                j_globallyInfectious = np.argwhere(bin_inInfectiousState&(1^self.isolation)).flatten()
+                # print("????????????????")
+                # print(np.argwhere(bool_inInfectiousState).flatten())
+                # print(np.argwhere(self.isolation))
+                # print(np.argwhere(bin_inInfectiousState&(1^self.isolation)).flatten())
+                # print("????????????????")
+                # print("bool_inInfectiousState", bool_inInfectiousState)
+                # print("j_globallyInfectious", j_globallyInfectious)
+                infectivityWts_global[j_globallyInfectious] += ((1-self.openness) * ((self.mixedness) * ((self.compartments[infectiousState]['transmissibilities']['global']*np.count_nonzero((self.isolation^1)*(self.X==self.stateID[infectiousState]).flatten()))/self.N[self.tidx])))# the (self.isolation^1) inverts the 0/1 isolation vals using the ^ XOR operator; this is to exclude isolated individuals from global transmission                             
+                # print("global", infectivityWts_global[j_globallyInfectious])
                 #----------------------------------------
-                # Calulate Global transmission propensity weights:
-                bool_inInfectiousState = (self.X==self.stateID[infectiousState]).flatten()
-                bin_inInfectiousState  = [1 if i else 0 for i in bool_inInfectiousState]
+                # Calulate Local transmission propensity weights:
                 if(np.any(bool_inInfectiousState)):
                     for network, G in self.networks.items():
-                        # print(network)
                         bool_isGactive = (((G['active']!=0)&(self.isolation==0)) | ((G['active_isolation']!=0)&(self.isolation!=0))).flatten()
                         bin_isGactive  = [1 if i else 0 for i in bool_isGactive]
+                        # print("---------->", self.t)
+                        # print(infectiousState, network)
+                        # print(bin_isGactive)
+                        # print(self.isolation)
                         if(any(bool_isGactive) and any(bool_inInfectiousState)):
                             localInfectivity = self.infectivity_mat[infectiousState][network][infectee_node,:]
                             if(localInfectivity.sum() > 0):
@@ -1564,15 +1575,35 @@ class CompartmentNetworkModel():
         # proportional to total propensity of transmission to infectee:
         #----------------------------------------
         # Combine propensity weights for each transmission modality into a probability vector:
+        # print("infectivityWts_global", infectivityWts_global)
+        # print("infectivityWts_local", infectivityWts_local)
         possibleInfectorProbs = list(infectivityWts_global + infectivityWts_local)
         possibleInfectorProbs.append(infectivityWts_exogenous)
         possibleInfectorProbs = possibleInfectorProbs/np.sum(possibleInfectorProbs)
+        # print("possibleInfectorProbs", possibleInfectorProbs)
         #--------------------
         possibleInfectors = list(range(self.pop_size))
         possibleInfectors.append('exogenous')
         #--------------------
         # Randomly draw the infector node:
-        infector_node = int( np.random.choice(possibleInfectors, p=possibleInfectorProbs) )
+        try:
+            # print("infectivityWts_global infector:", infectivityWts_global)
+            # print("infectivityWts_local infector:", infectivityWts_local)
+            # print("possibleInfectorProbs infector:", possibleInfectorProbs)
+            # print("nonzero global:", np.count_nonzero((self.isolation^1)*(self.X==self.stateID[infectiousState]).flatten()))
+            infector_node = int( np.random.choice(possibleInfectors, p=possibleInfectorProbs) )
+        except ValueError:
+            # TODO: This needs to be dealt with; the solution in this catch is a stop gap.
+            #       The issue, It seems that in rare instances both the infectivityWts_global and infectivityWts_local 
+            #       arrays have all 0s. This implies that there is no propensity for transmission by any mode of transmission,
+            #       but if that were the case then there should have never been a transmission event to trigger this function... 
+            infector_node = int( np.random.choice(np.argwhere(1^self.isolation)) ) # uniform random draw from all non-isolated individuals
+            # print("infectivityWts_global infector:", infectivityWts_global[infector_node])
+            # print("infectivityWts_local infector:", infectivityWts_local[infector_node])
+            # print("possibleInfectorProbs infector:", possibleInfectorProbs[infector_node])
+            # print("nonzero global:", np.count_nonzero((self.isolation^1)*(self.X==self.stateID[infectiousState]).flatten()))
+            # print("blap")
+            # exit()
         #----------------------------------------
         # Add the infected node as a new case on the infector's lineage:
         #----------------------------------------
@@ -1602,7 +1633,7 @@ class CompartmentNetworkModel():
             'infectee_case_id':             self.nodeCaseIDs[infectee_node],
             'infectee_lineage':             self.nodeCaseIDs[infectee_node].split('.')[0],
             'infectee_lineage_depth':       len(self.nodeCaseIDs[infectee_node].split('.')),
-            'infectee_flags':               '|'.join(self.node_flags[infectee_node]),
+            'infectee_flags':               '|'.join(set(self.node_flags[infectee_node]+self.compartments[infection_transition['from']]['flags'])),
             'infectee_state_preinfection':  infection_transition['from'],
             'infectee_state_postinfection': infection_transition['to'],
             'infectee_isolation_status':    False if self.isolation[infectee_node]==0 else True,
@@ -1614,7 +1645,7 @@ class CompartmentNetworkModel():
             'infector_case_id':             self.nodeCaseIDs[infector_node] if infector_node is not None else None,
             'infector_lineage':             self.nodeCaseIDs[infector_node].split('.')[0] if infector_node is not None else None,
             'infector_lineage_depth':       len(self.nodeCaseIDs[infector_node].split('.')) if infector_node is not None else None,
-            'infector_flags':               '|'.join(self.node_flags[infector_node]) if infector_node is not None else None,
+            'infector_flags':               '|'.join(set(self.node_flags[infector_node]+self.compartments[infection_transition['from']]['flags'])) if infector_node is not None else None,
             'infector_state':               self.get_node_compartment(infector_node) if infector_node is not None else None,
             'infector_time_in_state':       self.state_timer[infector_node][0] if infector_node is not None else None,
             'infector_isolation_status':    (False if self.isolation[infector_node]==0 else True) if infector_node is not None else None,
@@ -1638,7 +1669,7 @@ class CompartmentNetworkModel():
                 'infector_total_degree_'+network:       len(infector_contacts),
                 'infector_active_degree_'+network:      np.count_nonzero(np.array(bin_isGactive)[infector_contacts]),
                 'infector_is_contact_'+network:         (infector_node in infectee_contacts) if infector_node is not None else False,
-                'infector_transmissibility_'+network:   np.mean(self.infectivity_mat[self.get_node_compartment(infector_node)]['workplace'][:,infector_node][self.infectivity_mat[self.get_node_compartment(infector_node)]['workplace'][:,infector_node] > 0]) if infector_node is not None else None
+                'infector_transmissibility_'+network:   np.mean(self.infectivity_mat[self.get_node_compartment(infector_node)][network][:,infector_node][self.infectivity_mat[self.get_node_compartment(infector_node)][network][:,infector_node] > 0]) if infector_node is not None else None
                 })
         caseLog.update({
             'infectee_total_degree_overall':    len(infectee_contacts_overall),
