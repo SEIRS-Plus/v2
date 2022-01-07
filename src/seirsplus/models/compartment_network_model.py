@@ -26,7 +26,7 @@ class CompartmentNetworkModel():
                     networks,
                     mixedness=0.0, 
                     openness=0.0,
-                    isolation_period=None,
+                    # isolation_period=None,
                     transition_mode='exponential_rates', 
                     local_trans_denom_mode='all_contacts',
                     prevalence_flags=['active_infection'],
@@ -91,8 +91,8 @@ class CompartmentNetworkModel():
 
         # Vectors holding the isolation status and isolation time for each node:
         self.isolation          = np.zeros(self.pop_size).astype(np.int)
-        self.isolation_period   = isolation_period
-        self.isolation_timer    = np.zeros(self.pop_size)
+        # self.isolation_period   = isolation_period
+        self.isolation_timer    = np.full(self.pop_size, None).astype('float64')
         self.totalIsolationTime = np.zeros(self.pop_size)
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -638,12 +638,12 @@ class CompartmentNetworkModel():
         # Update isolation timers/statuses:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         i_isolated = np.argwhere(self.isolation==1).flatten()
-        self.isolation_timer[i_isolated]    += dt
+        self.isolation_timer[i_isolated]    -= dt
         self.totalIsolationTime[i_isolated] += dt
-        if(self.isolation_period is not None):
-            i_exitingIsolation = np.argwhere(self.isolation_timer >= self.isolation_period).flatten()
-            for i in i_exitingIsolation:
-                self.set_isolation(node=i, isolation=False)
+        # if(self.isolation_period is not None):
+        i_exitingIsolation = np.argwhere(self.isolation_timer <= 0).flatten()
+        for i in i_exitingIsolation:
+            self.set_isolation(node=i, isolation=False)
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update model data series and metadata:
@@ -1275,7 +1275,7 @@ class CompartmentNetworkModel():
     ########################################################
 
 
-    def set_isolation(self, node, isolation):
+    def set_isolation(self, node, isolation, isolation_period=None):
         nodes = utils.treat_as_list(node)
         for node in nodes:
             if(isolation == True):
@@ -1284,7 +1284,7 @@ class CompartmentNetworkModel():
             elif(isolation==False):
                 self.isolation[node] = 0
             # Reset the isolation timer:
-            self.isolation_timer[node] = 0
+            self.isolation_timer[node] = isolation_period
 
 
     ########################################################

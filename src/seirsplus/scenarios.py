@@ -22,6 +22,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                                     # Network change params:
                                     network_active_cadences=None,
                                     # Isolation params:
+                                    isolation_period=None,
                                     isolation_delay_onset=0,
                                     isolation_delay_onset_groupmate=0,
                                     isolation_delay_positive=1,
@@ -699,7 +700,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
 
                     for isoIndividual in isolationCohort:
                         # Set this individual to be in isolation:
-                        model.set_isolation(isoIndividual, True)
+                        model.set_isolation(isoIndividual, True, isolation_period)
                         # If compliant, put this individual in a queue for de-isolation testing:
                         if(testing_compliance_deisolation[isoIndividual]):
                             # print("putting in deiso queue", isoIndividual)
