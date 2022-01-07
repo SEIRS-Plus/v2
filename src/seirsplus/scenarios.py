@@ -23,6 +23,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                                     network_active_cadences=None,
                                     # Isolation params:
                                     isolation_period=None,
+                                    isolation_clock_mode='entering_isolation',
                                     isolation_delay_onset=0,
                                     isolation_delay_onset_groupmate=0,
                                     isolation_delay_positive=1,
@@ -346,6 +347,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     # Upon onset of flagged state (e.g., symptoms):
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                    onsetFlaggedIndividuals = model.get_individuals_by_flag(onset_flags)
                     if(any(isolation_compliance_onset) or any(testing_compliance_onset)
                        or (intervention_groups is not None and (any(isolation_compliance_onset_groupmate) or any(testing_compliance_onset_groupmate)))):
                         for isoflag in onset_flags:
@@ -700,7 +702,43 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
 
                     for isoIndividual in isolationCohort:
                         # Set this individual to be in isolation:
-                        model.set_isolation(isoIndividual, True, isolation_period)
+
+                        isoIndividual_isoPeriod = isolation_period # start with the nominal isolation period
+
+                        if(isolation_clock_mode=='onset'):
+                            # print("onset mode")
+                            if(isoIndividual in onsetFlaggedIndividuals):
+                                # print("\tin onset state", isoIndividual, model.get_compartment_by_state_id(model.X[isoIndividual])   )
+                                isoIndividual_isoPeriod -= model.state_timer[isoIndividual][0]
+                        elif(isolation_clock_mode=='test'):
+                            # print("test mode")
+                            if(isoIndividual in isolationCohort_positive or isoIndividual in isolationCohort_positive_groupmate):
+                                # print("\there due to test result", isoIndividual, "tested on", individual_testing_times[isoIndividual][-1], model.t)
+                                # print(isoIndividual_isoPeriod)
+                                # print((model.t - individual_testing_times[isoIndividual][-1]))
+                                isoIndividual_isoPeriod -= (model.t - individual_testing_times[isoIndividual][-1])                
+                                # print(isoIndividual_isoPeriod)
+                            else:
+                                pass # no change to isoIndividual_isoPeriod
+                        elif(isolation_clock_mode=='result'):
+                            # print("result mode")
+                            if(isoIndividual in isolationCohort_positive):
+                                # print("\there due to test result", isoIndividual)
+                                isoIndividual_isoPeriod -= isolation_delay_positive
+                            elif(isoIndividual in isolationCohort_positive_groupmate):
+                                # print("\there due to test result", isoIndividual)
+                                isoIndividual_isoPeriod -= isolation_delay_positive_groupmate
+                            else:
+                                pass # no change to isoIndividual_isoPeriod
+                        else:
+                            # print("else mode")
+                            pass # no change to isoIndividual_isoPeriod
+
+                        if(isoIndividual_isoPeriod > 0):
+                            # print("\tdo the thing", isoIndividual_isoPeriod)
+                            model.set_isolation(isoIndividual, True, isoIndividual_isoPeriod)                                          
+                        
+
                         # If compliant, put this individual in a queue for de-isolation testing:
                         if(testing_compliance_deisolation[isoIndividual]):
                             # print("putting in deiso queue", isoIndividual)
@@ -750,8 +788,8 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
 
                     print("\t"+str(len(isolationCohort_onset))              +"\tisolated "+str(isolation_delay_onset)+" days after onset")
                     print("\t"+str(len(isolationCohort_onset_groupmate))    +"\tisolated "+str(isolation_delay_onset_groupmate)+" days after groupmate onset")
-                    print("\t"+str(len(isolationCohort_positive))           +"\tisolated "+str(isolation_delay_positive)+" days after positive")
-                    print("\t"+str(len(isolationCohort_positive_groupmate)) +"\tisolated "+str(isolation_delay_positive_groupmate)+" days after groupmate positive")
+                    print("\t"+str(len(isolationCohort_positive))           +"\tisolated "+str(isolation_delay_positive)+" days after positive result")
+                    print("\t"+str(len(isolationCohort_positive_groupmate)) +"\tisolated "+str(isolation_delay_positive_groupmate)+" days after groupmate positive result")
                     print("\t"+str(len(isolationCohort_traced))             +"\tisolated "+str(isolation_delay_traced)+" days after traced")
                     print("\t"+str(len(isolationCohort))                    +"\tISOLATED TOTAL")
 

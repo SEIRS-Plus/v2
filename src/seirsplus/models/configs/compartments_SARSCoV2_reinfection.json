@@ -34,7 +34,7 @@
 			"susceptibilities": 	{},
 			"initial_prevalence": 	0.0,
 			"exogenous_prevalence": 0.0,
-			"flags": 				["infected", "active_infection", "infectious"]
+			"flags": 				["infected", "active_infection", "infectious", "symptomatic"]
 		},
 	"A":{
 			"transitions": 			{"R": {"prob":1.0, "time":4.0}},			
