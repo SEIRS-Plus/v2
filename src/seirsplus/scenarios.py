@@ -735,7 +735,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                             pass # no change to isoIndividual_isoPeriod
 
                         if(isoIndividual_isoPeriod > 0):
-                            # print("\tdo the thing", isoIndividual_isoPeriod)
+                            print("\ndo the thing", isoIndividual_isoPeriod,"\n")
                             model.set_isolation(isoIndividual, True, isoIndividual_isoPeriod)                                          
                         
 
