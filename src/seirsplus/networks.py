@@ -520,13 +520,11 @@ def generate_community_networks(
 
     ageBrackets = list(age_groups.keys())
     for b, bracket in enumerate(ageBrackets):
-        print("\tmixing", bracket, "age group...")
         # Get the frequencies with which individuals of this age group 
         # contact individuals of other age groups out of the household:
         mixing_probs = nonhh_mixmat[b]/np.sum(nonhh_mixmat[b])
         # Get the within-age-group network layer for this age bracket:
         bracket_network = networks[bracket]
-
         #----------------------------------------
         # For each edge in this bracket's network layer;
         # Draw what age group this individual "should" be making contact with given the mixing probs. 
@@ -534,9 +532,9 @@ def generate_community_networks(
         # and create a new contact in the mixing network layer.
         #----------------------------------------
         for node_i, contact_j in bracket_network.edges:
-            node_ageGroup = node_labels[node_i].split('_')[-1] # labels are in age_X-Y format
+            node_ageGroup = node_labels[node_i]#.split('_')[-1] # labels are in age_X-Y format
             mixed_contact_ageGroup = np.random.choice(ageBrackets, p=mixing_probs)
-            if(mixed_contact_ageGroup != node_ageGroup):
+            if('age'+mixed_contact_ageGroup != node_ageGroup):
                 bracket_network.remove_edge(node_i, contact_j)
                 mixing_network_layer.add_edge(node_i, np.random.choice(age_groups[mixed_contact_ageGroup]['indices']))
 

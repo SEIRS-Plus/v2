@@ -934,7 +934,7 @@ class CompartmentNetworkModel():
             # (If neither of these are provided, defaults to 0 transmissibility.)
             local_transm_vals = transm_dict[network_name] if network_name in transm_dict else transm_dict['local']
             #----------------------------------------
-            # Convert omega value(s) to np array if not already np array or sparse matrix:
+            # Convert value(s) to np array if not already np array or sparse matrix:
             local_transm_vals = utils.param_as_array(local_transm_vals, (self.pop_size,1)) if not isinstance(local_transm_vals, (np.ndarray, scipy.sparse.csr_matrix, scipy.sparse.csc_matrix)) else local_transm_vals
             #----------------------------------------
             # Generate matrix of pairwise transmissibility values:
@@ -1290,6 +1290,7 @@ class CompartmentNetworkModel():
                 self.isolation[node] = 1
                 # print(node, "isolate for", isolation_period, "days")
             elif(isolation==False):
+                self.add_individual_flag(node, 'deisolated')
                 self.isolation[node] = 0
             # Reset the isolation timer:
             self.isolation_timer[node] = isolation_period
@@ -1464,13 +1465,13 @@ class CompartmentNetworkModel():
     ########################################################
 
 
-    def introduce_random_exposures(self, num, compartment='all', exposed_to='any'):
+    def introduce_random_exposures(self, num, compartment='all', exposed_to='any', post_exposure_state='random_transition'):
         num = int(num)
         compartments      = list(self.compartments.keys()) if compartment=='all' else utils.treat_as_list(compartment)
         infectiousStates  = list(self.compartments.keys()) if exposed_to=='any'  else utils.treat_as_list(exposed_to)
-        exposure_susceptibilities = []
         exposedNodes = []
         for exposure in range(num):
+            exposure_susceptibilities = []
             for compartment in compartments:
                 for infectiousState in infectiousStates:
                     if(infectiousState in self.compartments[compartment]['susceptibilities']):
@@ -1480,22 +1481,27 @@ class CompartmentNetworkModel():
                                                           'mean_susceptibility': np.mean(self.compartments[compartment]['susceptibilities'][infectiousState]['susceptibility']),
                                                           'susc_state_prevalence': self.get_count_by_compartment(compartment),
                                                           })
-            exposureType   = np.random.choice(exposure_susceptibilities, p=[d['mean_susceptibility']*d['susc_state_prevalence'] for d in exposure_susceptibilities]/np.sum([d['mean_susceptibility']*d['susc_state_prevalence'] for d in exposure_susceptibilities]))
-            exposableNodes = [i for i in range(self.pop_size) if self.X[i]==self.stateID[exposureType['susc_state']]]
-            if(len(exposableNodes) > 0):
-                exposedNode    = np.random.choice(exposableNodes, p=exposureType['susceptibilities'][exposableNodes]/np.sum(exposureType['susceptibilities'][exposableNodes]))
-                exposedNodes.append(exposedNode)
-                #--------------------
-                exposureTransitions = self.compartments[exposureType['susc_state']]['susceptibilities'][exposureType['inf_state']]['transitions']
-                exposureTransitionsActiveStatuses = [exposureTransitions[dest]['path_taken'].flatten()[exposedNode] for dest in exposureTransitions]
-                destState = np.random.choice(list(exposureTransitions.keys()), p=exposureTransitionsActiveStatuses/np.sum(exposureTransitionsActiveStatuses))
-                #--------------------
-                if(self.track_case_info):
-                    self.add_case_to_lineage(exposedNode, parent=None)
-                    self.add_case_log(infectee_node=exposedNode, infector_node=None, infection_transition={'from':self.get_node_compartment(exposedNode), 'to':destState, 'type':'introduction'})
-                #--------------------
-                self.set_state(exposedNode, destState, update_data_series=False) # too slow to update data series after every node state update, will updata data series after loop
-            self.update_data_series()
+            exposureTypeProbs = [d['mean_susceptibility']*d['susc_state_prevalence'] for d in exposure_susceptibilities]/np.sum([d['mean_susceptibility']*d['susc_state_prevalence'] for d in exposure_susceptibilities])
+            if(np.sum(exposureTypeProbs) > 0): # may be == 0 if the susceptibility of all individuals is 0
+                exposureType      = np.random.choice(exposure_susceptibilities, p=exposureTypeProbs)
+                exposableNodes    = [i for i in range(self.pop_size) if self.X[i]==self.stateID[exposureType['susc_state']]]
+                if(len(exposableNodes) > 0):
+                    exposedNode    = np.random.choice(exposableNodes, p=exposureType['susceptibilities'][exposableNodes]/np.sum(exposureType['susceptibilities'][exposableNodes]))
+                    exposedNodes.append(exposedNode)
+                    #--------------------
+                    if(post_exposure_state == 'random_transition'):
+                        exposureTransitions = self.compartments[exposureType['susc_state']]['susceptibilities'][exposureType['inf_state']]['transitions']
+                        exposureTransitionsActiveStatuses = [exposureTransitions[dest]['path_taken'].flatten()[exposedNode] for dest in exposureTransitions]
+                        destState = np.random.choice(list(exposureTransitions.keys()), p=exposureTransitionsActiveStatuses/np.sum(exposureTransitionsActiveStatuses))
+                    else:
+                        destState = post_exposure_state
+                    #--------------------
+                    if(self.track_case_info):
+                        self.add_case_to_lineage(exposedNode, parent=None)
+                        self.add_case_log(infectee_node=exposedNode, infector_node=None, infection_transition={'from':self.get_node_compartment(exposedNode), 'to':destState, 'type':'introduction'})
+                    #--------------------
+                    self.set_state(exposedNode, destState, update_data_series=False) # too slow to update data series after every node state update, will updata data series after loop
+                self.update_data_series()
         return exposedNodes
 
 
@@ -1675,13 +1681,22 @@ class CompartmentNetworkModel():
             bool_isGactive = (((G['active']!=0)&(self.isolation==0)) | ((G['active_isolation']!=0)&(self.isolation!=0))).flatten()
             bin_isGactive  = [1 if i else 0 for i in bool_isGactive]
             bin_isGactive_overall += bin_isGactive
+            if(infector_node is not None):
+                infector_network_infectivities         = self.infectivity_mat[self.get_node_compartment(infector_node)][network][:,infector_node]
+                # print(infector_network_infectivities)
+                infector_network_infectivities_nonzero = infector_network_infectivities[infector_network_infectivities > 0]
+                # print(infector_network_infectivities_nonzero)
+                # print(type(infector_network_infectivities_nonzero))
+                infector_network_transmissibility      = np.mean(infector_network_infectivities_nonzero) if infector_network_infectivities_nonzero.sum() > 0 else 0
+                # print(infector_network_transmissibility)
+                # exit()
             caseLog.update({
                 'infectee_total_degree_'+network:       len(infectee_contacts),  
                 'infectee_active_degree_'+network:      np.count_nonzero(np.array(bin_isGactive)[infectee_contacts]),
-                'infector_total_degree_'+network:       len(infector_contacts),
-                'infector_active_degree_'+network:      np.count_nonzero(np.array(bin_isGactive)[infector_contacts]),
+                'infector_total_degree_'+network:       len(infector_contacts) if infector_node is not None else None,
+                'infector_active_degree_'+network:      np.count_nonzero(np.array(bin_isGactive)[infector_contacts]) if infector_node is not None else None,
                 'infector_is_contact_'+network:         (infector_node in infectee_contacts) if infector_node is not None else False,
-                'infector_transmissibility_'+network:   np.mean(self.infectivity_mat[self.get_node_compartment(infector_node)][network][:,infector_node][self.infectivity_mat[self.get_node_compartment(infector_node)][network][:,infector_node] > 0]) if infector_node is not None else None
+                'infector_transmissibility_'+network:   infector_network_transmissibility if infector_node is not None else None
                 })
         caseLog.update({
             'infectee_total_degree_overall':    len(infectee_contacts_overall),
@@ -1730,7 +1745,7 @@ class CompartmentNetworkModel():
             #     new_test_params = json.load(new_test_params_file)
         elif(isinstance(new_test_params, dict)):
             pass
-        elif(new_test_params == 'default'):
+        elif(isinstance(new_test_params, str) and new_test_params == 'default'):
             # If no test params are given, default to a test that is 100% sensitive/specific to all compartments with the prevalence flag(s) given by arg or model attribute:
             new_test_params = {}
             infectedCompartments = self.get_compartments_by_flag(prevalence_flags) if prevalence_flags is not None else self.prevalence_flags

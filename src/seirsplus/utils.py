@@ -31,8 +31,12 @@ def load_config(filename):
 
 
 def treat_as_list(val):
-    return [val] if (not isinstance(val, (list, np.ndarray)) and val is not None) else val
-
+    if(not isinstance(val, (list, np.ndarray)) and val is not None):
+        return [val]
+    elif(isinstance(val, (np.ndarray))):
+        return val.flatten()
+    else:
+        return val
 
 def param_as_array(param, shape):
     return np.array(param).reshape(shape) if isinstance(param, (list, np.ndarray)) else np.full(fill_value=param, shape=shape)

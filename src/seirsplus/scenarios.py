@@ -44,6 +44,8 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                                     test_type_proactive=None,
                                     test_type_onset=None,
                                     test_type_traced=None,
+                                    test_type_onset_groupmate=None,
+                                    test_type_positive_groupmate=None,
                                     test_type_deisolation=None, 
                                     test_result_delay=0,
                                     proactive_testing_cadence='never',
@@ -73,6 +75,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                                     tracing_pct_contacts=0,
                                     tracing_delay=1,
                                     tracing_compliance=1.0,
+                                    tracing_exclude_networks=[],
                                     # Misc. params:
                                     intervention_groups=None
                                 ):
@@ -147,10 +150,13 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
         #----------------------------------------
         model.update_test_parameters(test_params, prevalence_flags=prevalence_flags)
 
-        test_type_onset       = test_type_onset if test_type_onset is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
-        test_type_traced      = test_type_traced if test_type_traced is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
-        test_type_deisolation = test_type_deisolation if test_type_deisolation is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
-        test_type_proactive   = test_type_proactive if test_type_proactive is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
+        test_type_onset              = test_type_onset if test_type_onset is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
+        test_type_traced             = test_type_traced if test_type_traced is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
+        test_type_deisolation        = test_type_deisolation if test_type_deisolation is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
+        test_type_proactive          = test_type_proactive if test_type_proactive is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
+        test_type_onset_groupmate    = test_type_onset_groupmate if test_type_onset_groupmate is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
+        test_type_positive_groupmate = test_type_positive_groupmate if test_type_positive_groupmate is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
+        
 
         test_result_delay     = {test_type: test_result_delay for test_type in model.test_types} if not isinstance(test_result_delay, dict) else test_result_delay
 
@@ -391,7 +397,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                             for tracedIndividual in tracingCohort:
                                 individual_tracing_times[tracedIndividual].append(model.t)
                                 model.set_node_attribute(node=tracedIndividual, attribute_name='num_traces', attribute_value=len(individual_tracing_times[tracedIndividual]))
-                                model.set_node_attribute(node=tracedIndividual, attribute_name='time_of_last_trace', attribute_value=individual_tracing_times[tracedingIndividual][-1])
+                                model.set_node_attribute(node=tracedIndividual, attribute_name='time_of_last_trace', attribute_value=individual_tracing_times[tracedIndividual][-1])
                                 #---------------------------------------------
                                 # Isolate individual upon being traced:
                                 #---------------------------------------------
@@ -504,6 +510,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                     #---------------------------------------------
                     numTested_positive_groupmate   = 0
                     numPositive_positive_groupmate = 0
+                    # print(testingQueue_positive_groupmate)
                     testingCohort_positive_groupmate = (testingQueue_positive_groupmate.pop(0) & testing_nonExcludedIndividuals)
                     for testIndividual in testingCohort_positive_groupmate:
                         if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
@@ -632,26 +639,32 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                         #.............................................
                         # Isolate and/or Test groupmates of individuals with positive test result:
                         #.............................................
-                        if(intervention_groups is not None and any(isolation_compliance_positive_groupmate)):
+                        if(intervention_groups is not None and (any(isolation_compliance_positive_groupmate) or any(testing_compliance_positive_groupmate))):
                             groupmates = next((group for group in intervention_groups if positive_individual in group), None)
+                            # print("groupmates", groupmates)
                             if(groupmates is not None):
                                 for groupmate in groupmates:
                                     if(groupmate != positive_individual):
                                         #----------------------
                                         # Isolate groupmates:
                                         if(isolation_compliance_positive_groupmate[groupmate]):
+                                            # print("isolating", groupmate, "as groupmate")
                                             isolationSet_positive_groupmate.add(groupmate)
                                         #----------------------
                                         # Test groupmates:
+                                        # print("testing_compliance_positive_groupmate", groupmate, testing_compliance_positive_groupmate[groupmate])
                                         if(testing_compliance_positive_groupmate[groupmate]):
+                                            # print("testing", groupmate, "as groupmate")
                                             testingSet_positive_groupmate.add(groupmate)
                         #.............................................
                         # Trace contacts of individuals with positive test result:
                         #.............................................
+                        # print("tracing_compliance[positive_individual]", tracing_compliance[positive_individual])
                         if(tracing_compliance[positive_individual] and (any(isolation_compliance_traced) or any(testing_compliance_traced))):
                             contactsOfPositive = set()
-                            for netID, network_data in model.networks.items():
-                                contactsOfPositive.update( list(network_data['networkx'][positive_individual].keys()) )
+                            for network_name, network_data in model.networks.items():
+                                if(network_name not in tracing_exclude_networks):
+                                    contactsOfPositive.update( list(network_data['networkx'][positive_individual].keys()) )
                             contactsOfPositive = list(contactsOfPositive)
                             #.................
                             numTracedContacts  = tracing_num_contacts if tracing_num_contacts is not None else int(len(contactsOfPositive)*tracing_pct_contacts)
@@ -672,6 +685,8 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                     #   (testing traced contacts / positive groupmates must have at least 1 cadence_dt delay)
                     testingQueue_positive_groupmate.append(testingSet_positive_groupmate)
                     tracingQueue.append(tracingSet)
+
+                    print(tracingQueue)
 
 
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -734,8 +749,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                             # print("else mode")
                             pass # no change to isoIndividual_isoPeriod
 
-                        if(isoIndividual_isoPeriod > 0):
-                            print("\ndo the thing", isoIndividual_isoPeriod,"\n")
+                        if(isoIndividual_isoPeriod is not None and isoIndividual_isoPeriod > 0):
                             model.set_isolation(isoIndividual, True, isoIndividual_isoPeriod)                                          
                         
 
