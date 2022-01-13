@@ -19,10 +19,10 @@
 	"P":{
 			"transitions": 			{"I": {"prob":0.7, "time":2.0},
 									 "A": {"prob":0.3, "time":2.0}},			
-			"transmissibilities": 	{"local": 0.0, "exogenous": 0.0},
+			"transmissibilities": 	{"local": 0.0, "exogenous": 0.5},
 			"susceptibilities": 	{},
 			"initial_prevalence": 	0.0,
-			"exogenous_prevalence": 0.0,
+			"exogenous_prevalence": 0.07,
 			"flags": 				["active_infection", "infected", "infectious"]
 		},
 	"I":{

@@ -686,16 +686,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                     testingQueue_positive_groupmate.append(testingSet_positive_groupmate)
                     tracingQueue.append(tracingSet)
 
-                    print(tracingQueue)
-
-
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    # Execute vaccination:
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                        # for individual being vaccinated:
-                        #   call vaccinate()
-
-
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     # Execute isolation:
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
