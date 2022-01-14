@@ -80,8 +80,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                                     intervention_groups=None
                                 ):
 
-        print("I", model.mixedness)
-
         if(T>0):
             model.tmax += T
         else:

@@ -1,5 +1,6 @@
 # External Libraries
 import numpy as np
+import pandas as pd
 import json
 try:
     import importlib.resources as pkg_resources
@@ -28,6 +29,28 @@ def load_config(filename):
     except FileNotFoundError:
         print("load_config error: Config file \'"+filename+"\' not found in seirsplus.models.configs.")
         exit()
+
+
+def save_dataframe(df, file_name, file_extn='.csv', reduce_dtypes=True, flag_col_to_numeric=True, attrib_col_to_numeric=True,
+                    sep=',', na_rep='', float_format=None, columns=None, header=True, index=True, index_label=None, mode='w', 
+                    encoding=None, compression='infer', quoting=None, quotechar='"', line_terminator=None, chunksize=None, 
+                    date_format=None, doublequote=True, escapechar=None, decimal='.', errors='strict', storage_options=None):
+    if(reduce_dtypes):
+        for (column) in df:
+            if('_flag_' in column and flag_col_to_numeric):
+                df[column] = pd.to_numeric(df[column], downcast='integer', errors='coerce')
+            if('_attrib_' in column and attrib_col_to_numeric):
+                df[column] = pd.to_numeric(df[column], downcast='float', errors='coerce')
+            if(df[column].dtype in [np.int64, np.int32, np.int16, np.int8]):
+                if(df[column].min() >= 0):
+                    df[column] = pd.to_numeric(df[column], downcast='signed', errors='coerce') 
+                else:
+                    df[column] = pd.to_numeric(df[column], downcast='integer', errors='coerce')
+            elif(df[column].dtype in [np.float64, np.float32, np.float16]):
+                df[column] = pd.to_numeric(df[column], downcast='float', errors='coerce') # downcast arg uses smallest possible int that can hold the values
+    df.to_csv(path_or_buf=file_name+file_extn, sep=',', na_rep='', float_format=None, columns=None, header=True, index=True, index_label=None, 
+                    mode='w', encoding=None, compression='infer', quoting=None, quotechar='"', line_terminator=None, chunksize=None, 
+                    date_format=None, doublequote=True, escapechar=None, decimal='.', errors='strict', storage_options=None)
 
 
 def treat_as_list(val):
