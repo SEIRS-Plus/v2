@@ -1349,20 +1349,23 @@ class CompartmentNetworkModel():
     ########################################################
 
 
-    def set_isolation(self, node, isolation, isolation_period=None, flag_deisolated=True):
+    def set_isolation(self, node, isolation, isolation_period=None, store_isolation_attribs=True):
         nodes = utils.treat_as_list(node)
         for node in nodes:
             if(isolation == True):
-                # self.calc_infectious_time(node) <- TODO handle this?
                 self.isolation[node] = 1
-                # print(node, "isolate for", isolation_period, "days")
+                if(store_isolation_attribs):
+                    self.set_node_attribute(node, 'duration_of_last_isolation',             isolation_period)
+                    self.set_node_attribute(node, 'state_at_last_isolation_start',          self.get_node_compartment(node))
+                    self.set_node_attribute(node, 'time_in_state_at_last_isolation_start',  self.state_timer[node][0])
+                    self.set_node_attribute(node, 'time_of_last_isolation_start',           self.t)
+                    self.set_node_attribute(node, 'time_of_last_isolation_end',             None) # here to enforce that this attrib exists even if no nodes exit isolation
             elif(isolation==False):
                 self.isolation[node] = 0
-                # TODO the following seems hacky, remove or do better
-                self.set_node_attribute(node, 'time_of_last_isolation_exit', self.t)
-                if(flag_deisolated):
-                    self.add_individual_flag(node, 'deisolated') 
-                
+                if(store_isolation_attribs):
+                    self.set_node_attribute(node, 'state_at_last_isolation_end',          self.get_node_compartment(node))
+                    self.set_node_attribute(node, 'time_in_state_at_last_isolation_end',  self.state_timer[node][0])
+                    self.set_node_attribute(node, 'time_of_last_isolation_end',           self.t)
             # Reset the isolation timer:
             self.isolation_timer[node] = isolation_period
 
