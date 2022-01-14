@@ -80,6 +80,8 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                                     intervention_groups=None
                                 ):
 
+        print("I", model.mixedness)
+
         if(T>0):
             model.tmax += T
         else:
@@ -162,7 +164,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
 
         proactiveTestingTimes = [cadence_presets[individual_cadence] for individual_cadence in proactive_testing_cadence] if isinstance(proactive_testing_cadence, (list, np.ndarray)) else [cadence_presets[proactive_testing_cadence]]*model.pop_size
         if(not proactive_testing_synchronize):
-            print("scatter")
             for i, individualCadence in enumerate(proactiveTestingTimes):
                 proactiveTestingTimes[i] = np.sort(np.fmod(individualCadence + np.random.choice(range(cadence_cycle_length)), cadence_cycle_length))
 
