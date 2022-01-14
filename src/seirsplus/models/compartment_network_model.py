@@ -1970,6 +1970,8 @@ class CompartmentNetworkModel():
                 vaxxed_comp_dict['vaccine_series'][series] = {'vaccine_name': name, 'num_in_series': numberInSeries, 'unvaccinated_state': comp_name, 'vaccination_transition': None}
                 # Make sure the new compartment doesn't inherit a default state flag:
                 vaxxed_comp_dict['default_state']  = False 
+                # (Re)set the exogenous prevalence of the new compartment to 0:
+                vaxxed_comp_dict['exogenous_prevalence'] = 0.0 
                 # Update susceptibility values and susceptibility-related transmission transitions for the vaccinated state:
                 for infectiousState, susc_dict in vaxxed_comp_dict['susceptibilities'].items():
                     # Calculate susceptibilities for the vaccinated compartment based on the vaccine's effectiveness for susceptibility:
