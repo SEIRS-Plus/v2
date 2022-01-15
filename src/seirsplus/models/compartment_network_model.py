@@ -320,7 +320,7 @@ class CompartmentNetworkModel():
 
 
     def calc_propensities(self):
-        print("\nCALC PROPENSITIES")
+        # print("\nCALC PROPENSITIES")
         # time_calcprop_start = time.time()
 
         propensities     = []
@@ -419,27 +419,27 @@ class CompartmentNetworkModel():
                         #########################################
                         # VERSION 1
                         #########################################
-                        timenet_fv1 = time.time()
-                        #----------------------------------------
-                        # Determine which individuals need local transmission propensity calculated (active in network and infectible, non-zero propensity)
-                        # and which individuals are relevant in these calculations (active in network and infectious):
-                        #----------------------------------------
-                        bool_isnetworkactive    = (((network['active']!=0)&(self.isolation==0)) | ((network['active_isolation']!=0)&(self.isolation!=0))).ravel()
-                        bin_isnetworkactive     = [1 if i else 0 for i in bool_isnetworkactive]
+                        # timenet_fv1 = time.time()
+                        # #----------------------------------------
+                        # # Determine which individuals need local transmission propensity calculated (active in network and infectible, non-zero propensity)
+                        # # and which individuals are relevant in these calculations (active in network and infectious):
+                        # #----------------------------------------
+                        # bool_isnetworkactive    = (((network['active']!=0)&(self.isolation==0)) | ((network['active_isolation']!=0)&(self.isolation!=0))).ravel()
+                        # bin_isnetworkactive     = [1 if i else 0 for i in bool_isnetworkactive]
 
-                        bool_isInfectious = (self.X==self.stateID[infectiousState]).ravel()
-                        j_isInfectious    = np.argwhere(bool_isInfectious).ravel()
+                        # bool_isInfectious = (self.X==self.stateID[infectiousState]).ravel()
+                        # j_isInfectious    = np.argwhere(bool_isInfectious).ravel()
 
-                        bool_hasnetworkactiveInfectiousContacts = np.asarray(scipy.sparse.csr_matrix.dot(M, scipy.sparse.diags(bin_isnetworkactive))[:,j_isInfectious].sum(axis=1).astype(bool)).ravel()
+                        # bool_hasnetworkactiveInfectiousContacts = np.asarray(scipy.sparse.csr_matrix.dot(M, scipy.sparse.diags(bin_isnetworkactive))[:,j_isInfectious].sum(axis=1).astype(bool)).ravel()
 
-                        bool_isInfectible = (bool_isnetworkactive & bool_hasnetworkactiveInfectiousContacts)
-                        i_isInfectible    = np.argwhere(bool_isInfectible).ravel()
+                        # bool_isInfectible = (bool_isnetworkactive & bool_hasnetworkactiveInfectiousContacts)
+                        # i_isInfectible    = np.argwhere(bool_isInfectible).ravel()
 
-                        #----------------------------------------
-                        # Compute the local transmission propensity terms for individuals in the current contact network network
-                        #----------------------------------------
-                        ass = np.divide( scipy.sparse.csr_matrix.dot(M[i_isInfectible,:][:,j_isInfectious], (self.X==self.stateID[infectiousState])[j_isInfectious]), self.active_degree[i_isInfectible], out=np.zeros_like(propensity_infection_local[infectiousState][i_isInfectible]), where=self.active_degree[i_isInfectible]!=0 )
-                        print("        timenet_fv1", time.time() - timenet_fv1)
+                        # #----------------------------------------
+                        # # Compute the local transmission propensity terms for individuals in the current contact network network
+                        # #----------------------------------------
+                        # ass = np.divide( scipy.sparse.csr_matrix.dot(M[i_isInfectible,:][:,j_isInfectious], (self.X==self.stateID[infectiousState])[j_isInfectious]), self.active_degree[i_isInfectible], out=np.zeros_like(propensity_infection_local[infectiousState][i_isInfectible]), where=self.active_degree[i_isInfectible]!=0 )
+                        # print("        timenet_fv1", time.time() - timenet_fv1)
 
                         #########################################
                         # VERSION 2
@@ -449,39 +449,25 @@ class CompartmentNetworkModel():
                         # #----------------------------------------
                         # # Determine which individuals are relevant in these calculations (active in network and infectious):
                         # #----------------------------------------
-                        timenet_fv2 = time.time()
-                        # timenet_c = time.time()
-                        bool_isInfectious = (self.X==self.stateID[infectiousState]).ravel()
-                        j_isInfectious    = np.argwhere(bool_isInfectious).ravel()
-                        # print("        timenet_c", time.time() - timenet_c)
+                        # timenet_fv2 = time.time()
+                        # # timenet_c = time.time()
+                        # bool_isInfectious = (self.X==self.stateID[infectiousState]).ravel()
+                        # j_isInfectious    = np.argwhere(bool_isInfectious).ravel()
+                        # # print("        timenet_c", time.time() - timenet_c)
 
                         # #----------------------------------------
                         # # Compute the local transmission propensity terms for individuals in the current contact network network
                         # #----------------------------------------
                         
-                        ass = np.divide( scipy.sparse.csr_matrix.dot(M[:,j_isInfectious], (self.X==self.stateID[infectiousState])[j_isInfectious]), self.active_degree, out=np.zeros_like(propensity_infection_local[infectiousState]), where=self.active_degree!=0 )
-                        print("        timenet_fv2", time.time() - timenet_fv2)
-
-
-                        #########################################
-                        # VERSION 3
-                        #   (no computing or slicing using i_isInfectible or j_isInfectious)
-                        #########################################
-                        # !!!>>> This is the fastest for the N=1000 simulations for the Color isolation-policies memo. Test speeds at larger networks.
-                        #----------------------------------------
-                        # Compute the local transmission propensity terms for individuals in the current contact network network
-                        #----------------------------------------
-                        timenet_fv3 = time.time()
-                        ass = np.divide( scipy.sparse.csr_matrix.dot(M, (self.X==self.stateID[infectiousState])), self.active_degree, out=np.zeros_like(propensity_infection_local[infectiousState]), where=self.active_degree!=0 )
-                        print("        timenet_fv3", time.time() - timenet_fv3)
-
+                        # ass = np.divide( scipy.sparse.csr_matrix.dot(M[:,j_isInfectious], (self.X==self.stateID[infectiousState])[j_isInfectious]), self.active_degree, out=np.zeros_like(propensity_infection_local[infectiousState]), where=self.active_degree!=0 )
+                        # print("        timenet_fv2", time.time() - timenet_fv2)
                         
 
                         #########################################
                         # VERSION 4
                         #   (need to factor in which infectious individuals are active / not in isolation!)
                         #########################################
-                        timenet_fv4 = time.time()
+                        # timenet_fv4 = time.time()
 
                         # bool_isnetworkactive    = (((network['active']!=0)&(self.isolation==0)) | ((network['active_isolation']!=0)&(self.isolation!=0))).ravel()
                         # bin_isnetworkactive     = [1 if i else 0 for i in bool_isnetworkactive]
@@ -510,7 +496,7 @@ class CompartmentNetworkModel():
                                                                                 )
                         # print("prop", propensity_infection_local[infectiousState].shape, propensity_infection_local[infectiousState].sum())
                         
-                        print("        timenet_fv4", time.time() - timenet_fv4)
+                        # print("        timenet_fv4", time.time() - timenet_fv4)
                         # exit()
 
 
