@@ -222,5 +222,12 @@ def network_stats(networks, names=None, calc_avg_path_length=False, calc_connect
 
 
 
+def union_of_networks(networks):
+    import networkx
+    return networkx.compose_all(networks)
+
+
+
+
 
 
