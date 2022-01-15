@@ -265,7 +265,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
 
         running     = True
         while running: 
-            # time_scenaro_start = time.time()
 
             current_cadence_time = ((model.t + init_cadence_offset) - np.fmod((model.t + init_cadence_offset), cadence_dt)) % (cadence_cycle_length - np.fmod(cadence_cycle_length, cadence_dt))
             if(current_cadence_time != last_cadence_time):
@@ -430,14 +429,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                             if(numRandomTests > 0):
                                 testingSet_proactive = set(np.random.choice(proactiveTestingPool, numRandomTests, replace=False))
 
-
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    # Select individuals for vaccination (on cadence days): 
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                        # for individuals that meet criteria for vaccination:
-                        #   add to vaccination queue
-
-
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     # Execute testing:
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -509,7 +500,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                     #---------------------------------------------
                     numTested_positive_groupmate   = 0
                     numPositive_positive_groupmate = 0
-                    # print(testingQueue_positive_groupmate)
                     testingCohort_positive_groupmate = (testingQueue_positive_groupmate.pop(0) & testing_nonExcludedIndividuals)
                     for testIndividual in testingCohort_positive_groupmate:
                         if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
@@ -651,14 +641,11 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                                             isolationSet_positive_groupmate.add(groupmate)
                                         #----------------------
                                         # Test groupmates:
-                                        # print("testing_compliance_positive_groupmate", groupmate, testing_compliance_positive_groupmate[groupmate])
                                         if(testing_compliance_positive_groupmate[groupmate]):
-                                            # print("testing", groupmate, "as groupmate")
                                             testingSet_positive_groupmate.add(groupmate)
                         #.............................................
                         # Trace contacts of individuals with positive test result:
                         #.............................................
-                        # print("tracing_compliance[positive_individual]", tracing_compliance[positive_individual])
                         if(tracing_compliance[positive_individual] and (any(isolation_compliance_traced) or any(testing_compliance_traced))):
                             contactsOfPositive = set()
                             for network_name, network_data in model.networks.items():
@@ -705,51 +692,35 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                     testingSet_deisolation = set()
 
                     for isoIndividual in isolationCohort:
-                        # Set this individual to be in isolation:
-
+                        # Determine the isolation time from this point:
                         isoIndividual_isoPeriod = isolation_period # start with the nominal isolation period
-
                         if(isolation_clock_mode=='onset'):
-                            # print("onset mode")
                             if(isoIndividual in onsetFlaggedIndividuals):
-                                # print("\tin onset state", isoIndividual, model.get_compartment_by_state_id(model.X[isoIndividual])   )
                                 isoIndividual_isoPeriod -= model.state_timer[isoIndividual][0]
                         elif(isolation_clock_mode=='test'):
-                            # print("test mode")
                             if(isoIndividual in isolationCohort_positive or isoIndividual in isolationCohort_positive_groupmate):
-                                # print("\there due to test result", isoIndividual, "tested on", individual_testing_times[isoIndividual][-1], model.t)
-                                # print(isoIndividual_isoPeriod)
-                                # print((model.t - individual_testing_times[isoIndividual][-1]))
                                 isoIndividual_isoPeriod -= (model.t - individual_testing_times[isoIndividual][-1])                
-                                # print(isoIndividual_isoPeriod)
                             else:
                                 pass # no change to isoIndividual_isoPeriod
                         elif(isolation_clock_mode=='result'):
-                            # print("result mode")
                             if(isoIndividual in isolationCohort_positive):
-                                # print("\there due to test result", isoIndividual)
                                 isoIndividual_isoPeriod -= isolation_delay_positive
                             elif(isoIndividual in isolationCohort_positive_groupmate):
-                                # print("\there due to test result", isoIndividual)
                                 isoIndividual_isoPeriod -= isolation_delay_positive_groupmate
                             else:
                                 pass # no change to isoIndividual_isoPeriod
                         else:
-                            # print("else mode")
                             pass # no change to isoIndividual_isoPeriod
-
+                        # Set this individual to be in isolation:
                         if(isoIndividual_isoPeriod is not None and isoIndividual_isoPeriod > 0):
                             model.set_isolation(isoIndividual, True, isoIndividual_isoPeriod)                                          
-                        
-
                         # If compliant, put this individual in a queue for de-isolation testing:
                         if(testing_compliance_deisolation[isoIndividual]):
-                            # print("putting in deiso queue", isoIndividual)
                             testingSet_deisolation.add(isoIndividual)
 
+                    #---------------------------------------------
+
                     testingQueue_deisolation.append(testingSet_deisolation)
-
-
 
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -808,7 +779,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
             if(terminate_at_zero_cases):
                 running = running and (currentNumInfected > 0) # or currentNumIsolated > 0) if false positives occur at non-negligible rate then this ends up running for a long time after 0 true cases
 
-            # print("time_scenaro\t\t", time.time() - time_scenaro_start, "\n")
             # while loop
             #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
