@@ -1393,10 +1393,9 @@ class CompartmentNetworkModel():
         avals = utils.treat_as_list(attribute_value)
         if(attribute_name not in self.node_attributes):
             self.node_attributes[attribute_name] = np.full(shape=self.pop_size, fill_value=None)
-        for i, node in enumerate(nodes):
-            self.node_attributes[attribute_name][node] = avals[i]
-
-        # self.node_attributes[attribute_name] = utils.param_as_array(attribute_values, (1, self.pop_size)).ravel()
+        if(avals is not None):
+            for i, node in enumerate(nodes):
+                self.node_attributes[attribute_name][node] = avals[i]
 
 
     ########################################################

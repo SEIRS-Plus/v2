@@ -1,44 +1,44 @@
 {
 	"S":{
-			"pcr": 		{"sensitivity": 0.0,
-						 "specificity": 0.9999},
-			"antigen": 	{"sensitivity": 0.0,
-						 "specificity": 0.999}
+			"molecular": {"sensitivity": 0.0,
+						  "specificity": 0.9999},
+			"antigen": 	 {"sensitivity": 0.0,
+						  "specificity": 0.999}
 		},
 	"E":{
-			"pcr": 		{"sensitivity": 0.00001,
-						 "specificity": 0.9999},
-			"antigen": 	{"sensitivity": 0.00001,
-						 "specificity": 0.999}
+			"molecular": {"sensitivity": 0.00001,
+						  "specificity": 0.9999},
+			"antigen": 	 {"sensitivity": 0.00001,
+						  "specificity": 0.999}
 		},
 	"P":{
-			"pcr": 		{"sensitivity": [0.750, 0.800],
-						 "specificity": 0.9999},
-			"antigen": 	{"sensitivity": [0.300, 0.400],
-						 "specificity": 0.999}
+			"molecular": {"sensitivity": [0.750, 0.800],
+						  "specificity": 0.9999},
+			"antigen": 	 {"sensitivity": [0.300, 0.400],
+						  "specificity": 0.999}
 		},
 	"I":{
-			"pcr": 		{"sensitivity": [0.915, 0.930, 0.930, 0.930, 0.915, 0.885, 0.850, 0.810, 0.760, 0.700, 0.640, 0.580, 0.514, 0.442, 0.390, 0.343, 0.310, 0.293, 0.279, 0.260, 0.250, 0.230, 0.215, 0.205, 0.200],
-						 "specificity": 0.9999},
-			"antigen": 	{"sensitivity": [0.850, 0.900, 0.900, 0.850, 0.640, 0.480, 0.360, 0.240, 0.160, 0.080, 0.040, 0.020, 0.010, 0.000],
-						 "specificity": 0.999}
+			"molecular": {"sensitivity": [0.915, 0.930, 0.930, 0.930, 0.915, 0.885, 0.850, 0.810, 0.760, 0.700, 0.640, 0.580, 0.514, 0.442, 0.390, 0.343, 0.310, 0.293, 0.279, 0.260, 0.250, 0.230, 0.215, 0.205, 0.200],
+						  "specificity": 0.9999},
+			"antigen": 	 {"sensitivity": [0.850, 0.900, 0.900, 0.850, 0.640, 0.480, 0.360, 0.240, 0.160, 0.080, 0.040, 0.020, 0.010, 0.000],
+						  "specificity": 0.999}
 		},
 	"A":{
-			"pcr": 		{"sensitivity": [0.915, 0.930, 0.930, 0.930, 0.915, 0.885, 0.850, 0.810, 0.760, 0.700, 0.640, 0.580, 0.514, 0.442, 0.390, 0.343, 0.310, 0.293, 0.279, 0.260, 0.250, 0.230, 0.215, 0.205, 0.200],
-						 "specificity": 0.9999},
-			"antigen": 	{"sensitivity": [0.600, 0.660, 0.660, 0.600, 0.480, 0.360, 0.260, 0.180, 0.120, 0.060, 0.030, 0.010, 0.000, 0.000],
-						 "specificity": 0.999}
+			"molecular": {"sensitivity": [0.915, 0.930, 0.930, 0.930, 0.915, 0.885, 0.850, 0.810, 0.760, 0.700, 0.640, 0.580, 0.514, 0.442, 0.390, 0.343, 0.310, 0.293, 0.279, 0.260, 0.250, 0.230, 0.215, 0.205, 0.200],
+						  "specificity": 0.9999},
+			"antigen": 	 {"sensitivity": [0.600, 0.660, 0.660, 0.600, 0.480, 0.360, 0.260, 0.180, 0.120, 0.060, 0.030, 0.010, 0.000, 0.000],
+						  "specificity": 0.999}
 		},
 	"R":{
-			"pcr": 		{"sensitivity": 0.0,
-						 "specificity": 0.9999},
-			"antigen": 	{"sensitivity": 0.0,
-						 "specificity": 0.999}
+			"molecular": {"sensitivity": 0.0,
+						  "specificity": 0.9999},
+			"antigen": 	 {"sensitivity": 0.0,
+						  "specificity": 0.999}
 		},
 	"Rp":{
-			"pcr": 		{"sensitivity": 0.0,
-						 "specificity": 0.9999},
-			"antigen": 	{"sensitivity": 0.0,
-						 "specificity": 0.999}
+			"molecular": {"sensitivity": 0.0,
+						  "specificity": 0.9999},
+			"antigen": 	 {"sensitivity": 0.0,
+						  "specificity": 0.999}
 		}
 }
