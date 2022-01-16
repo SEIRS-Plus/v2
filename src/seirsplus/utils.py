@@ -34,7 +34,7 @@ def load_config(filename):
 def save_dataframe(df, file_name, file_extn='.csv', reduce_dtypes=True, flag_col_to_numeric=True, attrib_col_to_numeric=True,
                     sep=',', na_rep='', float_format=None, columns=None, header=True, index=True, index_label=None, mode='w', 
                     encoding=None, compression='infer', quoting=None, quotechar='"', line_terminator=None, chunksize=None, 
-                    date_format=None, doublequote=True, escapechar=None, decimal='.', errors='strict', storage_options=None):
+                    date_format=None, doublequote=True, escapechar=None, decimal='.', errors='strict'):
     if(reduce_dtypes):
         for (column) in df:
             if('_flag_' in column and flag_col_to_numeric):
