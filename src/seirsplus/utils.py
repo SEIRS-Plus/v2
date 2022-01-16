@@ -50,7 +50,7 @@ def save_dataframe(df, file_name, file_extn='.csv', reduce_dtypes=True, flag_col
                 df[column] = pd.to_numeric(df[column], downcast='float', errors='coerce') # downcast arg uses smallest possible int that can hold the values
     df.to_csv(path_or_buf=file_name+file_extn, sep=',', na_rep='', float_format=None, columns=None, header=True, index=True, index_label=None, 
                     mode='w', encoding=None, compression='infer', quoting=None, quotechar='"', line_terminator=None, chunksize=None, 
-                    date_format=None, doublequote=True, escapechar=None, decimal='.', errors='strict', storage_options=None)
+                    date_format=None, doublequote=True, escapechar=None, decimal='.', errors='strict')
 
 
 def treat_as_list(val):
