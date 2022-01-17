@@ -156,7 +156,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
         test_type_proactive          = test_type_proactive if test_type_proactive is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
         test_type_onset_groupmate    = test_type_onset_groupmate if test_type_onset_groupmate is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
         test_type_positive_groupmate = test_type_positive_groupmate if test_type_positive_groupmate is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
-        
 
         test_result_delay     = {test_type: test_result_delay for test_type in model.test_types} if not isinstance(test_result_delay, dict) else test_result_delay
 
