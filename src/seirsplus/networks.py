@@ -710,7 +710,7 @@ def generate_community_networks(
 
 def apply_social_distancing(network, contact_drop_prob, distancing_compliance=True):
     # Initialize social distancing compliances:
-    distancing_compliance = param_as_bool_array(distancing_compliance, (1, network.number_of_nodes())).flatten()
+    distancing_compliance = param_as_bool_array(distancing_compliance, n=network.number_of_nodes())
     # Store compliances as node attributes in the model object (e.g., for case logging purposes)
     # model.set_node_attribute(node=list(range(network.number_of_nodes())), attribute_name='distancing_compliance', attribute_value=distancing_compliance)
     # Get lists of pre-distancing edges for all nodes:

@@ -167,18 +167,18 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
         #----------------------------------------
         # Initialize individual compliances:
         #----------------------------------------
-        isolation_compliance_onset              = utils.param_as_bool_array(isolation_compliance_onset, (1, model.pop_size)).flatten()
-        isolation_compliance_onset_groupmate    = utils.param_as_bool_array(isolation_compliance_onset_groupmate, (1, model.pop_size)).flatten()
-        isolation_compliance_positive           = utils.param_as_bool_array(isolation_compliance_positive, (1, model.pop_size)).flatten()
-        isolation_compliance_positive_groupmate = utils.param_as_bool_array(isolation_compliance_positive_groupmate, (1, model.pop_size)).flatten()
-        isolation_compliance_traced             = utils.param_as_bool_array(isolation_compliance_traced, (1, model.pop_size)).flatten()
-        testing_compliance_proactive            = utils.param_as_bool_array(testing_compliance_proactive, (1, model.pop_size)).flatten()
-        testing_compliance_onset                = utils.param_as_bool_array(testing_compliance_onset, (1, model.pop_size)).flatten()
-        testing_compliance_onset_groupmate      = utils.param_as_bool_array(testing_compliance_onset_groupmate, (1, model.pop_size)).flatten()
-        testing_compliance_positive_groupmate   = utils.param_as_bool_array(testing_compliance_positive_groupmate, (1, model.pop_size)).flatten()
-        testing_compliance_traced               = utils.param_as_bool_array(testing_compliance_traced, (1, model.pop_size)).flatten()
-        testing_compliance_deisolation          = utils.param_as_bool_array(testing_compliance_deisolation, (1, model.pop_size)).flatten()
-        tracing_compliance                      = utils.param_as_bool_array(tracing_compliance, (1, model.pop_size)).flatten()
+        isolation_compliance_onset              = utils.param_as_bool_array(isolation_compliance_onset, n=model.pop_size)
+        isolation_compliance_onset_groupmate    = utils.param_as_bool_array(isolation_compliance_onset_groupmate, n=model.pop_size)
+        isolation_compliance_positive           = utils.param_as_bool_array(isolation_compliance_positive, n=model.pop_size)
+        isolation_compliance_positive_groupmate = utils.param_as_bool_array(isolation_compliance_positive_groupmate, n=model.pop_size)
+        isolation_compliance_traced             = utils.param_as_bool_array(isolation_compliance_traced, n=model.pop_size)
+        testing_compliance_proactive            = utils.param_as_bool_array(testing_compliance_proactive, n=model.pop_size)
+        testing_compliance_onset                = utils.param_as_bool_array(testing_compliance_onset, n=model.pop_size)
+        testing_compliance_onset_groupmate      = utils.param_as_bool_array(testing_compliance_onset_groupmate, n=model.pop_size)
+        testing_compliance_positive_groupmate   = utils.param_as_bool_array(testing_compliance_positive_groupmate, n=model.pop_size)
+        testing_compliance_traced               = utils.param_as_bool_array(testing_compliance_traced, n=model.pop_size)
+        testing_compliance_deisolation          = utils.param_as_bool_array(testing_compliance_deisolation, n=model.pop_size)
+        tracing_compliance                      = utils.param_as_bool_array(tracing_compliance, n=model.pop_size)
         # Store compliances as node attributes in the model object (e.g., for case logging purposes)
         model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='isolation_compliance_onset', attribute_value=isolation_compliance_onset)
         model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='isolation_compliance_onset_groupmate', attribute_value=isolation_compliance_onset_groupmate)
@@ -323,29 +323,29 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                     # Exclude the following individuals from all isolation:
                     # (these lists referenced in proactive isolation selection and isolation execution below)
                     #---------------------------------------------
-                    isolation_excluded_byFlags        = (np.isin(range(model.pop_size), model.get_individuals_by_flag(isolation_exclude_flags))).flatten()
-                    isolation_excluded_byCompartments = (np.isin(model.X, isolation_exclude_compartments)).flatten()
-                    isolation_excluded_byIsolation    = (model.isolation == True).flatten() if isolation_exclude_isolated else np.array([False]*model.pop_size)
-                    isolation_excluded_byNumTests     = (model.num_tests >= isolation_exclude_afterNumTests).flatten()
-                    isolation_excluded_byVaccineDoses = (model.num_vaccine_doses >= isolation_exclude_afterNumVaccineDoses).flatten()
+                    isolation_excluded_byFlags        = (np.isin(range(model.pop_size), model.get_individuals_by_flag(isolation_exclude_flags))).ravel()
+                    isolation_excluded_byCompartments = (np.isin(model.X, isolation_exclude_compartments)).ravel()
+                    isolation_excluded_byIsolation    = (model.isolation == True).ravel() if isolation_exclude_isolated else np.array([False]*model.pop_size)
+                    isolation_excluded_byNumTests     = (model.num_tests >= isolation_exclude_afterNumTests).ravel()
+                    isolation_excluded_byVaccineDoses = (model.num_vaccine_doses >= isolation_exclude_afterNumVaccineDoses).ravel()
                     
                     isolation_excluded                = (isolation_excluded_byFlags | isolation_excluded_byCompartments | isolation_excluded_byIsolation | isolation_excluded_byNumTests | isolation_excluded_byVaccineDoses)
 
-                    isolation_nonExcludedIndividuals  = set(np.argwhere(isolation_excluded==False).flatten())
+                    isolation_nonExcludedIndividuals  = set(np.argwhere(isolation_excluded==False).ravel())
 
                     #---------------------------------------------
                     # Exclude the following individuals from testing:
                     # (these lists referenced in proactive testing selection and testing execution below)
                     #---------------------------------------------
-                    testing_excluded_byFlags        = (np.isin(range(model.pop_size), model.get_individuals_by_flag(testing_exclude_flags))).flatten()
-                    testing_excluded_byCompartments = (np.isin(model.X, testing_exclude_compartments)).flatten()
-                    testing_excluded_byIsolation    = (model.isolation == True).flatten() if testing_exclude_isolated else np.array([False]*model.pop_size)
-                    testing_excluded_byNumTests     = (model.num_tests >= testing_exclude_afterNumTests).flatten()
-                    testing_excluded_byVaccineDoses = (model.num_vaccine_doses >= testing_exclude_afterNumVaccineDoses).flatten()
+                    testing_excluded_byFlags        = (np.isin(range(model.pop_size), model.get_individuals_by_flag(testing_exclude_flags))).ravel()
+                    testing_excluded_byCompartments = (np.isin(model.X, testing_exclude_compartments)).ravel()
+                    testing_excluded_byIsolation    = (model.isolation == True).ravel() if testing_exclude_isolated else np.array([False]*model.pop_size)
+                    testing_excluded_byNumTests     = (model.num_tests >= testing_exclude_afterNumTests).ravel()
+                    testing_excluded_byVaccineDoses = (model.num_vaccine_doses >= testing_exclude_afterNumVaccineDoses).ravel()
                     
                     testing_excluded                = (testing_excluded_byFlags | testing_excluded_byCompartments | testing_excluded_byIsolation | testing_excluded_byNumTests | testing_excluded_byVaccineDoses)
 
-                    testing_nonExcludedIndividuals  = set(np.argwhere(testing_excluded==False).flatten())
+                    testing_nonExcludedIndividuals  = set(np.argwhere(testing_excluded==False).ravel())
 
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     # Upon onset of flagged state (e.g., symptoms):
@@ -420,7 +420,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                                                                 & (testing_compliance_proactive==True)
                                                                 # Not excluded by compartment, flags, num tests, or num vaccine doses:
                                                                 & (testing_excluded==False)
-                                                              ).flatten()
+                                                              ).ravel()
                             #---------------------------------------------
                             # Distribute proactive tests randomly
                             #---------------------------------------------

@@ -65,11 +65,16 @@ def param_as_array(param, shape):
     return np.array(param).reshape(shape) if isinstance(param, (list, np.ndarray)) else np.full(fill_value=param, shape=shape)
 
 
-def param_as_bool_array(param, shape):
+def param_as_bool_array(param, n, shape=None, selection_mode='binomial'):
+    shape = (1, n) if shape is None else shape
     if(isinstance(param, (int, float)) and param>=0 and param<=1):
-        return np.array(param_as_array(np.random.binomial(n=1, p=param, size=max(shape[0], shape[1])), shape), dtype=bool)
+        if(selection_mode == 'binomial'):
+            return np.array(param_as_array(np.random.binomial(n=1, p=param, size=n), shape), dtype=bool).flatten()
+        elif(selection_mode == 'choice'):
+            selected_inds = np.random.choice(range(n), size=int(param*n), replace=False)
+            return param_as_bool_array([True if i in selected_inds else False for i in range(n)], n, shape).flatten()   
     else:
-        return np.array(param_as_array(param, shape), dtype=bool)
+        return np.array(param_as_array(param, shape), dtype=bool).flatten()
 
 
 def gamma_dist(mean, coeffvar, N):
