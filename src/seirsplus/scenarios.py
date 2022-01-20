@@ -167,6 +167,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
         #----------------------------------------
         # Initialize individual compliances:
         #----------------------------------------
+        print("from within scenarios")
         isolation_compliance_onset              = utils.param_as_bool_array(isolation_compliance_onset, n=model.pop_size)
         isolation_compliance_onset_groupmate    = utils.param_as_bool_array(isolation_compliance_onset_groupmate, n=model.pop_size)
         isolation_compliance_positive           = utils.param_as_bool_array(isolation_compliance_positive, n=model.pop_size)
