@@ -10,13 +10,12 @@ import networkx as networkx
 import numpy as np
 import scipy as scipy
 import scipy.integrate
+import itertools
+import time
 
 # Internal Libraries
 from seirsplus.models.compartment_model_builder import CompartmentModelBuilder
 from seirsplus import utils
-
-import itertools
-import time
 
 
 class CompartmentNetworkModel():
