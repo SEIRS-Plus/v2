@@ -62,6 +62,7 @@ def treat_as_list(val):
         return val
 
 def param_as_array(param, shape):
+    print("param", param, "shape", shape)
     return np.array(param).reshape(shape) if isinstance(param, (list, np.ndarray)) else np.full(fill_value=param, shape=shape)
 
 
