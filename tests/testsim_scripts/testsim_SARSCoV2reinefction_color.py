@@ -39,8 +39,6 @@ network, network_info = generate_workplace_contact_network(
 )
 networks = {"workplace": network}
 
-print(param_as_bool_array(0.7, shape=(1,N)))
-exit()
 
 
 # apply_social_distancing(network, 1.0)
