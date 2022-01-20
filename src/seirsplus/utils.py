@@ -67,13 +67,14 @@ def param_as_array(param, shape):
 
 
 def param_as_bool_array(param, n, shape=None, selection_mode='binomial'):
-    print("\nparam", param "n", n, "shape", shape)
+    print("\nparam", param, "n", n, "shape", shape)
     shape = (1, n) if shape is None else shape
     if(isinstance(param, (int, float)) and param>=0 and param<=1):
         if(selection_mode == 'binomial'):
             return np.array(param_as_array(np.random.binomial(n=1, p=param, size=n), shape), dtype=bool).flatten()
         elif(selection_mode == 'choice'):
             selected_inds = np.random.choice(range(n), size=int(param*n), replace=False)
+            print("from within param_as_bool_array")
             return param_as_bool_array([True if i in selected_inds else False for i in range(n)], n=n, shape=shape).flatten()   
     else:
         return np.array(param_as_array(param, shape), dtype=bool).flatten()
