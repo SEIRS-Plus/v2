@@ -62,12 +62,12 @@ def treat_as_list(val):
         return val
 
 def param_as_array(param, shape):
-    print("param", param, "shape", shape)
+    # print("param", param, "shape", shape)
     return np.array(param).reshape(shape) if isinstance(param, (list, np.ndarray)) else np.full(fill_value=param, shape=shape)
 
 
 def param_as_bool_array(param, n, shape=None, selection_mode='binomial'):
-    print("\nparam", param, "n", n, "shape", shape)
+    # print("\nparam", param, "n", n, "shape", shape)
     shape = (1, n) if shape is None else shape
     if(isinstance(param, (int, float)) and param>=0 and param<=1):
         if(selection_mode == 'binomial'):
