@@ -67,6 +67,7 @@ def param_as_array(param, shape):
 
 
 def param_as_bool_array(param, n, shape=None, selection_mode='binomial'):
+    print("\nparam", "n", n, param, "shape", shape)
     shape = (1, n) if shape is None else shape
     if(isinstance(param, (int, float)) and param>=0 and param<=1):
         if(selection_mode == 'binomial'):
