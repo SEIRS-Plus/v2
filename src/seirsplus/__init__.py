@@ -1,8 +1,12 @@
 # Standard Libraries
-from importlib import metadata
+try:
+	from importlib import metadata
+except ImportError:
+	# Try backported to PY<37 `importlib_metadata`.
+	import importlib_metadata as metadata
 
 # Internal Libraries
-from .utils.logging_utils import _configure_seirsplus_loggers
+from .dev_tools.logging_utils import _configure_seirsplus_loggers
 
 
 _configure_seirsplus_loggers(root_module_name=__name__)

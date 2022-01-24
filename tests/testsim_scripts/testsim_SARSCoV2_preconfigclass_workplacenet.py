@@ -1,6 +1,5 @@
 from seirsplus.models import sarscov2_network_model
 from seirsplus import networks
-from seirsplus.utils import distributions
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -8,7 +7,7 @@ import numpy as np
 # ------------------------
 
 # Instantiate a FARZ network
-N = 200
+N = 100000
 MEAN_DEGREE = 10
 MEAN_CLUSTER_SIZE = 10
 CLUSTER_INTERCONNECTEDNESS = 0.25
@@ -48,34 +47,34 @@ model.set_initial_prevalence("E", 0.01)
 model.run(T=100)
 
 # Plot results
-fig, ax = plt.subplots()
-ax.fill_between(
-    model.tseries,
-    model.counts["E"] + model.counts["P"] + model.counts["I"] + model.counts["A"],
-    np.zeros_like(model.tseries),
-    label="A",
-    color="pink",
-)
-ax.fill_between(
-    model.tseries,
-    model.counts["E"] + model.counts["P"] + model.counts["I"],
-    np.zeros_like(model.tseries),
-    label="I",
-    color="crimson",
-)
-ax.fill_between(
-    model.tseries,
-    model.counts["E"] + model.counts["P"],
-    np.zeros_like(model.tseries),
-    label="P",
-    color="orange",
-)
-ax.fill_between(
-    model.tseries,
-    model.counts["E"],
-    np.zeros_like(model.tseries),
-    label="E",
-    color="gold",
-)
-ax.legend()
-plt.show()
+# fig, ax = plt.subplots()
+# ax.fill_between(
+#     model.tseries,
+#     model.counts["E"] + model.counts["P"] + model.counts["I"] + model.counts["A"],
+#     np.zeros_like(model.tseries),
+#     label="A",
+#     color="pink",
+# )
+# ax.fill_between(
+#     model.tseries,
+#     model.counts["E"] + model.counts["P"] + model.counts["I"],
+#     np.zeros_like(model.tseries),
+#     label="I",
+#     color="crimson",
+# )
+# ax.fill_between(
+#     model.tseries,
+#     model.counts["E"] + model.counts["P"],
+#     np.zeros_like(model.tseries),
+#     label="P",
+#     color="orange",
+# )
+# ax.fill_between(
+#     model.tseries,
+#     model.counts["E"],
+#     np.zeros_like(model.tseries),
+#     label="E",
+#     color="gold",
+# )
+# ax.legend()
+# plt.show()
