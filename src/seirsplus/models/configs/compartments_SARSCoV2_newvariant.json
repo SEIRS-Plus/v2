@@ -1,4 +1,13 @@
 {
+	"Rp":{
+			"transitions": 			{},
+			"transmissibilities": 	{},
+			"susceptibilities": 	{"P": {"susceptibility":0.5, "transitions": {"E": {"prob":1.0}}},
+									 "I": {"susceptibility":0.5, "transitions": {"E": {"prob":1.0}}},
+									 "A": {"susceptibility":0.5, "transitions": {"E": {"prob":1.0}}}},
+			"default_state": 		true,
+			"flags": 				["recovered", "susceptible", "prior_infection"]
+		},
 	"S":{
 			"transitions": 			{},
 			"transmissibilities": 	{},
@@ -9,37 +18,37 @@
 			"flags": 				["susceptible"]
 		},
 	"E":{
-			"transitions": 			{"P": {"prob":1.0, "time":3.0}},			
+			"transitions": 			{"P": {"prob":1.0, "time":2.0}},			
 			"transmissibilities": 	{"local": 0.0, "exogenous": 0.0},
 			"susceptibilities": 	{},
 			"initial_prevalence": 	0.0,
 			"exogenous_prevalence": 0.0,
-			"flags": 				["infected"]
+			"flags": 				["infected", "active_infection"]
 		},
 	"P":{
-			"transitions": 			{"I": {"prob":0.6, "time":2.2},
-									 "A": {"prob":0.4, "time":2.2}},			
-			"transmissibilities": 	{"local": 0.5, "exogenous": 0.0},
+			"transitions": 			{"I": {"prob":0.7, "time":1.0},
+									 "A": {"prob":0.3, "time":1.0}},			
+			"transmissibilities": 	{"local": 0.0, "exogenous": 0.0},
 			"susceptibilities": 	{},
 			"initial_prevalence": 	0.0,
 			"exogenous_prevalence": 0.0,
-			"flags": 				["infected", "infectious"]
+			"flags": 				["infected", "infectious", "active_infection"]
 		},
 	"I":{
 			"transitions": 			{"R": {"prob":1.0, "time":4.0}},			
-			"transmissibilities": 	{"local": 0.5, "exogenous": 0.0},
+			"transmissibilities": 	{"local": 0.0, "exogenous": 0.0},
 			"susceptibilities": 	{},
 			"initial_prevalence": 	0.0,
 			"exogenous_prevalence": 0.0,
-			"flags": 				["infected", "infectious"]
+			"flags": 				["infected", "infectious", "symptomatic", "active_infection"]
 		},
 	"A":{
 			"transitions": 			{"R": {"prob":1.0, "time":4.0}},			
-			"transmissibilities": 	{"local": 0.5, "exogenous": 0.0},
+			"transmissibilities": 	{"local": 0.0, "exogenous": 0.0},
 			"susceptibilities": 	{},
 			"initial_prevalence": 	0.0,
 			"exogenous_prevalence": 0.0,
-			"flags": 				["infected", "infectious"]
+			"flags": 				["infected", "infectious", "active_infection"]
 		},
 	"R":{
 			"transitions": 			{},			
@@ -47,6 +56,6 @@
 			"susceptibilities": 	{},
 			"initial_prevalence": 	0.0,
 			"exogenous_prevalence": 0.0,
-			"flags": 				["recovered"]
+			"flags": 				["infected", "recovered"]
 		}
 }

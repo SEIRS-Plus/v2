@@ -1,74 +1,71 @@
-# External libraries
-import numpy as np
-import matplotlib.pyplot as plt
-# seirsplus libraries
-from seirsplus.models.preconfig_disease_models import *
+import mlflow
+mlflow.set_tracking_uri(uri='databricks')
+
+from seirsplus.models.compartment_model_builder import CompartmentModelBuilder
+from seirsplus.models.compartment_network_model import CompartmentNetworkModel
 from seirsplus.networks import *
-from seirsplus.utils import *
+from seirsplus.utils import distributions
+from seirsplus.utils.io import *
 from seirsplus.scenarios import *
+import matplotlib.pyplot as plt
+import numpy as np
 
 # ------------------------
 
-# Set population size:
-N = 2
+# Create MLflow Client
+client = mlflow.tracking.MlflowClient()
+# experiments = client.list_experiments()
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Generate contact networks:
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# networks, clusters, households, age_groups, node_labels = generate_community_networks(N)
-MEAN_DEGREE = 10
-MEAN_CLUSTER_SIZE = 10
-CLUSTER_INTERCONNECTEDNESS = 0.25
-network, network_info = generate_workplace_contact_network(
-    N=N,
-    num_cohorts=1,
-    num_nodes_per_cohort=N,
-    num_teams_per_cohort=int(N / MEAN_CLUSTER_SIZE),
-    mean_intracohort_degree=MEAN_DEGREE,
-    farz_params={
-        "beta": (1 - CLUSTER_INTERCONNECTEDNESS),
-        "alpha": 5.0,
-        "gamma": 5.0,
-        "r": 1,
-        "q": 0.0,
-        "phi": 50,
-        "b": 0,
-        "epsilon": 1e-6,
-        "directed": False,
-        "weighted": False,
-    },
-)
-networks = {"network": network}
+# experiment = client.create_experiment(name='/Shared/proactive-testing')
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Instantiate the model:
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-model = SARSCoV2NetworkModel(networks=networks, mixedness=0.2)
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Specify other model configurations:
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# model.set_network_activity('household', active_isolation=True)
+testing_capacities = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+tracing_coverage   = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Set model metadata:
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# for i in range(N): 
-#     model.add_individual_flag(node=i, flag=node_labels[i])
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Set up the initial state:
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-model.introduce_random_exposures((1/N)*N)
+with mlflow.start_run(experiment_id='2741365028337245') as run:
+    for testcap in testing_capacities:
+        for tracecov in tracing_coverage:
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-model.add_vaccine(name='pfizer_dose1', susc_effectiveness=0.9, transm_effectiveness=0.5, series='covid', compartment_flag='vaccinated')
 
-print(model.compartments)
+            submit a job to hyak that has 1000  reps
+
+
+
+            with mlflow.start_run(nested=True, experiment_id='2741365028337245') as nested_run:
+                mlflow.log_param('testing_capacity', testcap)
+                mlflow.log_param('tracing_coverage', tracecov)
+                mlflow.set_tags({
+                    'type': 'network',
+                    'problem': 'hospitals overrun',
+                })
+
+    mlflow.log_param('best_run', 3)
+
+
 exit()
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Run the model scenario:
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+N = 1000
+
+networks, clusters, households, age_groups, node_labels = generate_community_networks(N)
+
+
+# Instantiate the model:
+model = CompartmentNetworkModel(
+            compartments=load_config("compartments_SARSCoV2_default.json"),
+            networks=networks,
+            transition_mode="time_in_state",
+            isolation_period=10
+        )
+
+# Specify other model configurations:
+model.set_network_activity('household', active_isolation=True)
+
+# Set up the initial state:
+model.set_initial_prevalence("E", 0.01)
+
+# Run the model
+# model.run_with_interventions(T=100, max_dt=0.1, default_dt=0.1,
 run_interventions_scenario(model, T=100, max_dt=0.1, default_dt=0.1,
                                 # Intervention timing params:
                                 cadence_dt=0.5, 
@@ -80,13 +77,11 @@ run_interventions_scenario(model, T=100, max_dt=0.1, default_dt=0.1,
                                 prevalence_flags=['infected'],
                                 onset_flags=['symptomatic'], 
                                 case_introduction_rate=1/7,
-                                # Network params:
-                                network_active_cadences={network: 'daily' if network!='household' else 'nightly' for network in networks},
                                 # Isolation params:
                                 isolation_delay_onset=0,
                                 isolation_delay_onset_groupmate=0,
-                                isolation_delay_positive=0,
-                                isolation_delay_positive_groupmate=0,
+                                isolation_delay_positive=1,
+                                isolation_delay_positive_groupmate=1,
                                 isolation_delay_traced=0,
                                 isolation_compliance_onset=True, 
                                 isolation_compliance_onset_groupmate=False,
@@ -100,10 +95,9 @@ run_interventions_scenario(model, T=100, max_dt=0.1, default_dt=0.1,
                                 isolation_exclude_afterNumVaccineDoses=None,
                                 # Testing params:
                                 test_params=load_config("tests_SARSCoV2_default.json"), 
-                                test_type_proactive='antigen',
+                                test_type_proactive='molecular',
                                 test_type_onset='molecular',
                                 test_type_traced='molecular', 
-                                test_result_delay={'molecular': 1, 'antigen': 0},
                                 proactive_testing_cadence='weekly',
                                 testing_capacity_max=1.0,
                                 testing_capacity_proactive=0.1,
@@ -128,24 +122,6 @@ run_interventions_scenario(model, T=100, max_dt=0.1, default_dt=0.1,
                                 tracing_compliance=True,
                                 # Misc. params:
                                 intervention_groups=None)
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Update results data with other info:
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# timestamp
-# connected components
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Save results to file:
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-results = model.get_results_dataframe()
-results.to_csv('./results.csv')
-
-cases = model.get_case_log_dataframe()
-cases.to_csv('./case_logs.csv')
-
-
-
 
 # Plot results
 # fig, ax = plt.subplots()

@@ -2,16 +2,14 @@
 import numpy as np
 import scipy
 import networkx
-import matplotlib.pyplot as pyplot
 
 # Internal Libraries
 import seirsplus.FARZ as FARZ
-from seirsplus.utils.io import *
-from seirsplus.utils.distributions import *
+from seirsplus.utils import *
 
 
 
-def generate_workplace_contact_network(num_cohorts=1, num_nodes_per_cohort=100, num_teams_per_cohort=10,
+def generate_workplace_contact_network(N, num_cohorts=1, num_nodes_per_cohort=100, num_teams_per_cohort=10,
                                         mean_intracohort_degree=6, pct_contacts_intercohort=0.2,
                                         farz_params={'alpha':5.0, 'gamma':5.0, 'beta':0.5, 'r':1, 'q':0.0, 'phi':10, 
                                                      'b':0, 'epsilon':1e-6, 'directed': False, 'weighted': False},
@@ -33,7 +31,7 @@ def generate_workplace_contact_network(num_cohorts=1, num_nodes_per_cohort=100, 
 
         farz_params.update({'n':numNodes, 'k':numTeams, 'm':cohortMeanDegree})
 
-        cohortNetwork, cohortTeamLabels = FARZ.generate(farz_params={'n':1000, 
+        cohortNetwork, cohortTeamLabels = FARZ.generate(farz_params={'n':N, 
                                                     'm':10, 
                                                     'k':100,
                                                     'beta':0.75, 
@@ -83,7 +81,7 @@ def generate_workplace_contact_network(num_cohorts=1, num_nodes_per_cohort=100, 
             # Add intercohort edges:
             if(len(cohortNetworks) > 1):
                 for d in list(range(i_interCohortDegree)):
-                    j = numpy.random.choice(list(range(0, cohortStartIdx))+list(range(cohortFinalIdx+1, N)))
+                    j = np.random.choice(list(range(0, cohortStartIdx))+list(range(cohortFinalIdx+1, N)))
                     workplaceNetwork.add_edge(i, j)
 
     network_info = { 'cohorts_indices': cohorts_indices,
@@ -393,7 +391,8 @@ def generate_community_networks(
         age_groups[bracket]['indices'] = list(range(curidx, curidx + age_groups[bracket]['size']))
         curidx += age_groups[bracket]['size']
         # Store label of age assigned to each node:
-        node_labels[min(age_groups[bracket]['indices']) : max(age_groups[bracket]['indices'])] = ['age_'+bracket] * age_groups[bracket]['size']
+        if(len(age_groups[bracket]['indices']) > 0):
+            node_labels[min(age_groups[bracket]['indices']) : max(age_groups[bracket]['indices'])] = ['age'+bracket] * age_groups[bracket]['size']
 
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -498,8 +497,11 @@ def generate_community_networks(
                     if(graph_gen_attempts % 5 == 0):
                         # Relax the tolerance after every 5 failed attempts
                         tolerance_relaxations += 1
-                        targetMeanDegreeRange = (targetMeanDegree - mean_degree_tolerance*2**tolerance_relaxations, 
-                                                 targetMeanDegree + mean_degree_tolerance*2**tolerance_relaxations)
+                        try:
+                            targetMeanDegreeRange = (targetMeanDegree - mean_degree_tolerance*2**tolerance_relaxations, 
+                                                     targetMeanDegree + mean_degree_tolerance*2**tolerance_relaxations)
+                        except OverflowError:
+                            targetMeanDegreeRange = (0, N)
                         degree_param = targetMeanDegree
                     else:
                         if(meanDegree < targetMeanDegreeRange[0]):
@@ -518,13 +520,11 @@ def generate_community_networks(
 
     ageBrackets = list(age_groups.keys())
     for b, bracket in enumerate(ageBrackets):
-        print("\tmixing", bracket, "age group...")
         # Get the frequencies with which individuals of this age group 
         # contact individuals of other age groups out of the household:
         mixing_probs = nonhh_mixmat[b]/np.sum(nonhh_mixmat[b])
         # Get the within-age-group network layer for this age bracket:
         bracket_network = networks[bracket]
-
         #----------------------------------------
         # For each edge in this bracket's network layer;
         # Draw what age group this individual "should" be making contact with given the mixing probs. 
@@ -532,9 +532,9 @@ def generate_community_networks(
         # and create a new contact in the mixing network layer.
         #----------------------------------------
         for node_i, contact_j in bracket_network.edges:
-            node_ageGroup = node_labels[node_i].split('_')[-1] # labels are in age_X-Y format
+            node_ageGroup = node_labels[node_i]#.split('_')[-1] # labels are in age_X-Y format
             mixed_contact_ageGroup = np.random.choice(ageBrackets, p=mixing_probs)
-            if(mixed_contact_ageGroup != node_ageGroup):
+            if('age'+mixed_contact_ageGroup != node_ageGroup):
                 bracket_network.remove_edge(node_i, contact_j)
                 mixing_network_layer.add_edge(node_i, np.random.choice(age_groups[mixed_contact_ageGroup]['indices']))
 
@@ -706,6 +706,27 @@ def generate_community_networks(
 # import matplotlib.pyplot as plt
 # plt.imshow(ageBracket_contactMatrix, cmap='Blues')
 # plt.show()
+
+
+def apply_social_distancing(network, contact_drop_prob, distancing_compliance=True):
+    # Initialize social distancing compliances:
+    print("from within apply_social_distancing")
+    distancing_compliance = param_as_bool_array(distancing_compliance, n=network.number_of_nodes())
+    # Store compliances as node attributes in the model object (e.g., for case logging purposes)
+    # model.set_node_attribute(node=list(range(network.number_of_nodes())), attribute_name='distancing_compliance', attribute_value=distancing_compliance)
+    # Get lists of pre-distancing edges for all nodes:
+    edges_orig = [list(network.edges(node)) for node in network.nodes()]
+    # Go through individuals and randomly drop the designated proportion of their edges (if compliant):
+    for i in range(network.number_of_nodes()):
+        if(distancing_compliance[i]==True):
+            for edge in edges_orig[i]:    
+                if(np.random.rand() < contact_drop_prob):
+                    try:
+                        network.remove_edge(edge[0], edge[1])
+                    except networkx.NetworkXError: 
+                        # this error type is raised when the edge passed to remove_edge does not exist
+                        pass
+        
 
 
 
