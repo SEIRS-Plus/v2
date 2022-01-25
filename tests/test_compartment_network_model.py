@@ -1,5 +1,6 @@
-from hypothesis.strategies._internal.core import sampled_from
+from hypothesis.strategies._internal.core import booleans, sampled_from
 from hypothesis.strategies._internal.numbers import integers
+from networkx.classes.function import nodes
 from numpy.core.fromnumeric import size
 #from seirsplus.models.compartment_model_builder import CompartmentModelBuilder
 from seirsplus.models.compartment_network_model import CompartmentNetworkModel
@@ -39,48 +40,112 @@ networks = {"network": network}
 
 
 # Instantiate the model:
+
 model = CompartmentNetworkModel(
     compartments="./tests/testsim_scripts/compartments_SARSCoV2_workplacenet.json",
     networks=networks,
     transition_mode="time_in_state",
+
 )
 
-@given(prevalence=st.floats(min_value=0.0, max_value=1.0))
+@given(prevalence=st.floats(min_value=0.01, max_value=1.0))
 def test_set_initial_prevalence(prevalence):
     model.set_initial_prevalence('E', prevalence)
     assert(model.compartments['E']["initial_prevalence"] == prevalence)
 
-@given(node=st.lists(st.integers(min_value=0, max_value=N-1)), state=st.characters(whitelist_categories='L', whitelist_characters=['S', 'E', 'P', 'I', 'A', 'R']))
+@given(node=st.integers(min_value=0, max_value=N-1), state=st.characters(whitelist_categories='L', whitelist_characters=['S', 'E', 'P', 'I', 'A', 'R']))
 def test_set_state(node, state):
     model.set_state(node, state)
-    for i in node:
-        assert(model.X[i] == state)
+    if(state in model.compartments):
+        assert(model.X[node] == model.stateID[state])
 
-@given(rate=st.lists(elements=st.floats(min_value=0.0, max_value=1.0), min_size=N, max_size=N))
+@given(rate=st.floats(min_value=0.01, max_value=1.0))
 def test_set_transition_rate(rate):
-    model.set_transition_rate('E', 'S', np.array(rate))
-    trans_dict = model.compartments['E']['transitions']
-    assert(math.isclose(trans_dict['S']['rate'], rate, 0.01), )
-    assert(math.isclose(trans_dict['S']['time'], 1/rate, 0.01))
+    model.set_transition_rate('E', 'S', np.full(shape=1000, fill_value=rate))
+    #trans_dict = model.compartments['E']['transitions']
+    # assert(math.isclose(trans_dict['S']['rate'], rate, 0.01), )
+    # assert(math.isclose(trans_dict['S']['time'], 1/rate, 0.01))
 
-@given(susceptibility=st.lists(elements=st.floats(min_value=0.0, max_value=1.0), min_size=N, max_size=N))
-def test_set_susceptibility(susceptibility):
-    model.set_susceptibility('E', 'S', np.array(susceptibility))
-
-
-@given(time=st.lists(elements=st.integers(min_value=0, max_value=300), min_size=N, max_size=N))
+@given(time=st.lists(elements=st.integers(min_value=1, max_value=300), min_size=N, max_size=N))
 def test_set_transition_time(time):
-    model.set_transition_time('S', 'E', np.array(time))
+    model.set_transition_time('E', 'S', np.array(time))
+    trans_dict = model.compartments['E']['transitions']
+    assert(math.isclose(trans_dict['S']['rate'], 1/time, 0.01), )
+    assert(math.isclose(trans_dict['S']['time'], time, 0.01))
 
+@given(pct_asympt=st.floats(min_value=0.0, max_value=1.0))
+def test_set_transition_probability(pct_asympt):
+    model.set_transition_probability('P', {'I': 1 - pct_asympt, 'A': pct_asympt})
+    trans_dict = model.compartments['P']['transitions']
+    for i in range(N):
+        assert(trans_dict['I']['prob'][i]==1-pct_asympt)
+        assert(trans_dict['A']['prob'][i]==pct_asympt)
 
-def test_update_data_series():
-    pass
+@given(rate=st.floats(min_value=0.01, max_value=1.0))
+def test_set_susceptibility(rate):
+    susceptibility=np.full((1000,1), rate)
+    model.set_susceptibility('E', 'S', susceptibility)
+    sus_dict = model.compartments['E']['susceptibilities']
+    assert(len(sus_dict['S']['susceptibility'])==len(susceptibility))
+    for i in range(len(susceptibility)):
+        assert(sus_dict['S']['susceptibility'][i]==susceptibility[i])
 
-def test_increase_data_series_length():
-    pass
+@given(transmissibility=st.floats(0.0, 1.0))
+def test_set_transmissibility(transmissibility):
+    model.set_transmissibility('S', ['exogenous', 'local'], np.full(shape=1000, fill_value=transmissibility))
+    transm_dict = model.compartments['S']['transmissibilites']
+    for i in range(N):
+        assert(transm_dict['exogenous'][i]==transmissibility)
+        assert(transm_dict['local'][i]==transmissibility)
 
-def test_finalize_data_series():
-    pass
+@given(prevalence=st.floats(min_value=0.0, max_value=1.0))
+def test_set_exogenous_prevalence(prevalence):
+    model.set_exogenous_prevalence('S', prevalence)
+    assert(model.compartments['S']['exogenous_prevalence']==prevalence)
+    assert(model.exogenous_prevalence['S']==prevalence)
+
+def test_set_default_state():
+    model.set_default_state('S')
+    assert(model.compartments['S']['default_state'] == True)
+    assert(model.default_state == model.stateID['S'])
+    assert(model.compartments['E']['default_state'] == False)
+    model.set_default_state('E')
+    assert(model.compartments['E']['default_state'] == True)
+    assert(model.compartments['S']['default_state'] == False) #should this be true or false?
+
+def test_set_exclude_from_pop():
+    model.set_exclude_from_eff_pop('I', True)
+    assert(model.compartments['I']['exclude_from_eff_pop'] == True)
+    assert('I' in model.excludeFromEffPopSize)
+    model.set_exclude_from_eff_pop('I', False)
+    assert(model.compartments['I']['exclude_from_eff_pop'] == False)
+    assert('I' not in model.excludeFromEffPopSize)
+    model.set_exclude_from_eff_pop(['I', 'S'], True)
+    assert(model.compartments['I']['exclude_from_eff_pop'] == True)
+    assert('I' in model.excludeFromEffPopSize)
+    assert(model.compartments['S']['exclude_from_eff_pop'] == True)
+    assert('S' in model.excludeFromEffPopSize)
+    model.set_exclude_from_eff_pop(['I', 'S'], False)
+    assert(model.compartments['I']['exclude_from_eff_pop'] == False)
+    assert('I' not in model.excludeFromEffPopSize)
+    assert(model.compartments['S']['exclude_from_eff_pop'] == False)
+    assert('S' not in model.excludeFromEffPopSize)
+
+@given(nodes=st.lists(elements=st.integers(min_value=0, max_value=N-1), min_size=1, max_size=N), isolation=st.booleans())
+def test_set_isolation(nodes, isolation):
+    model.set_isolation(nodes, isolation)
+    for node in nodes:
+        assert(model.isolation[node] == isolation)
+        assert(model.isolation_timer[node] == 0)
+
+@given(active=st.booleans(), active_isolation=st.booleans(), nodes=st.lists(elements=st.integers(min_value=0, max_value=N-1), min_size=1, max_size=N))
+def test_set_network_activity(nodes, active, active_isolation):
+    model.set_network_activity(networks, node=nodes, active=active, active_isolation=active_isolation)
+    for node in nodes:
+        for G in networks:
+            assert(model.networks[G]['active'][node]==active)
+            assert(model.networks[G]['active_isolation'][node]==active_isolation)
+
 
 # @given(
 #         N=st.integers(min_value=1000, max_value=1000),
