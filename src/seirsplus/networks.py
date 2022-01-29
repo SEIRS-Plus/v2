@@ -94,7 +94,6 @@ def generate_workplace_contact_network(N, num_cohorts=1, num_nodes_per_cohort=10
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-
 def generate_community_networks(
         N, 
         age_brackets_pcts='default',  
@@ -582,10 +581,6 @@ def generate_community_networks(
     return networks, clusters, households, age_groups, node_labels
 
 
-
-
-
-
 # N = 50000
 # networks, clusters, households, age_groups, node_labels = generate_community_networks(N)
 
@@ -706,6 +701,493 @@ def generate_community_networks(
 # import matplotlib.pyplot as plt
 # plt.imshow(ageBracket_contactMatrix, cmap='Blues')
 # plt.show()
+
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+def generate_primary_school_contact_network(num_grades, num_classes_per_grade, class_sizes, 
+                                            num_student_blocks=1, block_by_household=True, connect_students_in_households=True, 
+                                            num_staff=0, num_teacher_staff_communities=1, teacher_staff_degree=10,
+                                            farz_params={'alpha':5.0, 'gamma':5.0, 'beta':0.5, 'r':1, 'q':0.0, 'phi':10, 
+                                                         'b':0, 'epsilon':1e-6, 'directed': False, 'weighted': False},):
+
+    networks                 = {}
+
+    grades_studentIDs        = {}
+    classrooms_studentIDs    = {}
+    classrooms_teacherIDs    = {}
+    node_labels              = []
+
+    studentIDs_studentBlocks = {}
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Generate the student contact matrices 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    gradeSubmatrices = []
+
+    curStudentID = 0
+    curClassID   = 0
+
+    for g in range(num_grades):
+
+        numClassrooms = num_classes_per_grade[g] if isinstance(num_classes_per_grade, list) else num_classes_per_grade
+        classSizes    = class_sizes[g] if isinstance(class_sizes, list) else class_sizes
+
+        classroomSubmatrices = []
+        grades_studentIDs[g] = []
+        for c in range(numClassrooms):
+            
+            classSize = classSizes[c] if isinstance(classSizes, list) else classSizes
+
+            # Create a strongly connected submatrix of student nodes representing each classroom:
+            classroomSubmatrix = np.ones(shape=(classSize, classSize))
+            np.fill_diagonal(classroomSubmatrix, 0)
+
+            classroomSubmatrices.append(classroomSubmatrix)
+
+            classroom_studentIDs = list(range(curStudentID, curStudentID+classSize))
+            classrooms_studentIDs[curClassID] = classroom_studentIDs
+            grades_studentIDs[g] += classroom_studentIDs
+
+            curStudentID += classSize
+            curClassID   += 1
+
+            node_labels  += ['student']*classSize
+
+        # Create a block matrix of within-grade contacts out of contact matrices for each class:
+        gradeSubmatrix = scipy.sparse.block_diag(classroomSubmatrices)
+        gradeSubmatrices.append(gradeSubmatrix)
+
+    # Create a block matrix of within-student contacts out of contact matrices for each grade:
+    studentContactMatrix = scipy.sparse.block_diag(gradeSubmatrices)
+    
+    totalNumStudents   = curStudentID
+    totalNumClassrooms = curClassID
+
+    studentIDs_studentBlocks = {i: (i%num_student_blocks)+1 for i in list(range(totalNumStudents))}
+
+    studentIDs = list(range(curStudentID))
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Generate the teacher/staff contact matrix 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    numTeachers = totalNumClassrooms
+    numStaff    = num_staff
+
+    node_labels += ['teacher']*numTeachers
+    node_labels += ['staff']*numStaff
+
+    # Create a FARZ network layer for teacher/staff contacts:
+    # teacherstaffNetwork = np.zeros(shape=(numTeachers+numStaff, numTeachers+numStaff))
+    farz_params.update({'n':numTeachers+numStaff, 'k':num_teacher_staff_communities, 'm':teacher_staff_degree})
+    teacherstaffNetwork, teacherstaffCommunityLabels = FARZ.generate(farz_params=farz_params)
+
+    # Convert the FARZ network into an adjacency matrix for now:
+    teacherstaffContactMatrix = networkx.adjacency_matrix(teacherstaffNetwork)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Generate student, teacher/staff, and combined network layers
+    # (with nodes for both students and teachers/staff present in each):
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    networks['school']                  = networkx.Graph( scipy.sparse.block_diag([studentContactMatrix, teacherstaffContactMatrix]) )
+
+    networks['school-studentsonly']     = networkx.Graph( scipy.sparse.block_diag([studentContactMatrix, np.zeros(shape=teacherstaffContactMatrix.shape)]) )
+
+    networks['school-teacherstaffonly'] = networkx.Graph( scipy.sparse.block_diag([np.zeros(shape=studentContactMatrix.shape), teacherstaffContactMatrix]) )
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Connect teachers with students in their classroom
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    teacherIDs = []
+
+    curTeacherID = curStudentID # pick up teacher IDs where student IDs left off
+    for classroomID, classStudentIDs in classrooms_studentIDs.items():
+        for studentID in classStudentIDs:
+            networks['school'].add_edge(curTeacherID, studentID)
+            classrooms_teacherIDs[classroomID] = curTeacherID
+        teacherIDs.append(curTeacherID)
+        curTeacherID += 1
+
+    staffIDs   = list(range(curTeacherID, curTeacherID+num_staff))
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Connect any nodes with zero edges to at least one node:
+    for u in [node for node, degree in networks['school'].degree() if degree == 0]:
+        if(u in studentIDs):
+            networks['school'].add_edge(u, np.random.choice(studentIDs))
+        else:
+            networks['school'].add_edge(u, np.random.choice(teacherIDs))
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Convenience for visualization:
+    networkx.set_edge_attributes(networks['school'], 1, 'layout_weight')
+    networkx.set_edge_attributes(networks['school'], 1, 'layout_weight_block')
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Determine which students occupy the same household
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if(connect_students_in_households):
+        
+        # Using 2016 (latest) census data: https://www2.census.gov/programs-surveys/demo/tables/families/2016/cps-2016/tabf1-all.xls
+        # Of US households with at least 1 child age 6-11 (K-5 age)...
+        #   11,295 (69%) have 1 child age 6-11
+        #   4,277  (26%) have 2 children age 6-11
+        #   809    (5%)  have 3+ children age 6-11
+
+        networks['households'] = networkx.classes.function.create_empty_copy(networks['school'])
+
+        # For each student, determine how many other K-5 students are in their household,
+        # and strongly connect K-5 students in the same household.
+        studentsNeedingHousehold = list(range(totalNumStudents))
+        np.random.shuffle(studentsNeedingHousehold)
+
+        householdEdges = []
+
+        counter=0
+        while(len(studentsNeedingHousehold) > 0):
+
+            focalStudentID = studentsNeedingHousehold.pop()
+
+            numK5Housemates = min( np.random.choice([0, 1, 2], p=[0.69, 0.26, 0.05]), len(studentsNeedingHousehold) )
+            
+            # if(numK5Housemates>0):
+            #     counter += 1
+            #     print(str(focalStudentID) + str(": ") + str(numK5Housemates) + " ("+str(counter)+")")
+
+            # Draw another student from the school, ensuring housemates (siblings) aren't in same grade:
+            k5Housemates = []
+            attempts     = 0
+            while(len(k5Housemates) < numK5Housemates and attempts < 10):
+                otherStudentID    = studentsNeedingHousehold.pop()
+                focalStudentGrade = [key for key, value in grades_studentIDs.items() if focalStudentID in value][0]
+                otherStudentGrade = [key for key, value in grades_studentIDs.items() if otherStudentID in value][0]
+                if(focalStudentGrade != otherStudentGrade):
+                    # Create an edge between focal student and their K-5 housemates:
+                    networks['households'].add_edge(focalStudentID, otherStudentID)
+                    k5Housemates.append(otherStudentID)
+                    # Force all housemates to be in the same school block:
+                    if(block_by_household):
+                        studentIDs_studentBlocks[otherStudentID] = studentIDs_studentBlocks[focalStudentID]
+                else:
+                    # Put this otherStudent back in the studentsNeedingHousehold list:
+                    studentsNeedingHousehold.append(otherStudentID)
+                attempts += 1
+            # If 3 students in household, connect the 2nd and 3rd drawn housemates
+            if(len(k5Housemates) == 2):
+                networks['households'].add_edge(k5Housemates[0], k5Housemates[-1])
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Create versions of the network representing different subgroups being onsite
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # networks['onsite-all']  = networks['school']
+    networks['offsite-all'] = networkx.classes.function.create_empty_copy(networks['school'])
+
+    if(num_student_blocks > 1):
+        for block in range(1, num_student_blocks+1):
+            # Create a copy of the full network to be modified
+            networks['onsite-block'+str(block)] = networks['school'].copy()
+            # Iterate over students, removing out-of-block students from this network:
+            for studentID, studentBlock in studentIDs_studentBlocks.items():
+                if(studentBlock == block):
+                    # Do nothing, keep this student in the onsite network for this block
+                    pass
+                else:
+                    # Remove edges for student's not in the current block
+                    studentEdges = list( networks['onsite-block'+str(block)].edges(studentID) )
+                    networks['onsite-block'+str(block)].remove_edges_from(studentEdges)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Add household edges to all networks
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # for networkName, network in networks.items():
+    #     if('school-teacherstaffonly' == networkName):
+    #         continue
+    #     network.add_edges_from(householdEdges, layout_weight=0.01)
+    #     network.add_edges_from(householdEdges, layout_weight_block=1)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    network_info = {'studentIDs':               studentIDs,
+                    'teacherIDs':               teacherIDs,
+                    'staffIDs':                 staffIDs,
+                    'grades_studentIDs':        grades_studentIDs,
+                    'classrooms_studentIDs':    classrooms_studentIDs,
+                    'classrooms_teacherIDs':    classrooms_teacherIDs,
+                    'studentIDs_studentBlocks': studentIDs_studentBlocks,
+                    'node_labels':              node_labels }
+
+
+    return networks, network_info
+
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+def generate_secondary_school_contact_network(num_grades=4, num_students_per_grade=500, num_communities_per_grade=25,
+                                              student_mean_intragrade_degree=16, student_pct_contacts_intergrade=0.2,
+                                              num_student_blocks=1, block_by_household=True, connect_students_in_households=True, 
+                                              num_teachers=175, num_staff=75, num_teacher_staff_communities=10, teacher_staff_degree=12,
+                                              num_classes_per_student=6, classlevel_probs = [[0.8, 0.1, 0.05, 0.05], [0.1, 0.75, 0.1, 0.05], [0.05, 0.1, 0.75, 0.1], [0.05, 0.05, 0.1, 0.8]],
+                                              farz_params={'alpha':5.0, 'gamma':5.0, 'beta':0.8, 'r':2, 'q':0.5, 'phi':10, 
+                                                           'b':0, 'epsilon':1e-6, 'directed': False, 'weighted': False},
+                                              distancing_scales=[]):
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Generate FARZ networks of intra-grade contacts:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    networks = {}
+
+    gradeNetworks = []
+
+    communities_studentIDs = {}
+
+    totalNumStudents = num_students_per_grade*num_grades
+    node_labels      = ['student']*(totalNumStudents)
+
+    for i in range(num_grades):
+
+        numNodes        = num_students_per_grade[i] if isinstance(num_students_per_grade, list) else num_students_per_grade
+        numCommunities  = num_communities_per_grade[i] if isinstance(num_communities_per_grade, list) else num_communities_per_grade
+        gradeMeanDegree = student_mean_intragrade_degree[i] if isinstance(student_mean_intragrade_degree, list) else student_mean_intragrade_degree
+
+        farz_params.update({'n':numNodes, 'k':numCommunities, 'm':int(gradeMeanDegree/2.0)})
+
+        gradeNetwork, gradeTeamLabels = FARZ.generate(farz_params=farz_params)
+
+        gradeNetworks.append(gradeNetwork)
+
+        for node, communities in gradeTeamLabels.items():
+            for community in communities:
+                try:
+                    communities_studentIDs['g'+str(i)+'-c'+str(community)].append(node)
+                except KeyError:
+                    communities_studentIDs['g'+str(i)+'-c'+str(community)] = [node]    
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Establish inter-grade student-student contacts:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    gradesAdjMatrices   = [networkx.adj_matrix(gradeNetwork) for gradeNetwork in gradeNetworks]
+
+    studentAdjMatrix    = scipy.sparse.block_diag(gradesAdjMatrices)
+    studentNetwork      = networkx.from_scipy_sparse_matrix(studentAdjMatrix)
+
+    N = studentNetwork.number_of_nodes()
+
+    grades_studentIDs = {}
+    gradeStartIdx     = -1
+    gradeFinalIdx     = -1
+    for g, gradeNetwork in enumerate(gradeNetworks):
+
+        gradeStartIdx = gradeFinalIdx + 1
+        gradeFinalIdx = gradeStartIdx + gradeNetwork.number_of_nodes() - 1
+        grades_studentIDs[g] = list(range(gradeStartIdx, gradeFinalIdx+1))
+
+        for community, indices in communities_studentIDs.items():
+            if('g'+str(g) in community):
+                communities_studentIDs[community] = [idx+gradeStartIdx for idx in indices]
+
+        for i in list(range(gradeNetwork.number_of_nodes())):
+            i_intraCohortDegree = gradeNetwork.degree[i]
+            i_interCohortDegree = int( ((1/(1-student_pct_contacts_intergrade))*i_intraCohortDegree)-i_intraCohortDegree )
+            # Add intergrade edges:
+            if(len(gradeNetworks) > 1):
+                for d in list(range(i_interCohortDegree)):
+                    j = np.random.choice(list(range(0, gradeStartIdx))+list(range(gradeFinalIdx+1, N)))
+                    studentNetwork.add_edge(i, j)
+
+    networks['school-studentsonly'] = studentNetwork
+
+    studentIDs_studentBlocks = {i: (i%num_student_blocks)+1 for i in list(range(totalNumStudents))}
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Generate the teacher/staff network layer
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    numTeachers = num_teachers
+    numStaff    = num_staff
+
+    # Label all teacher/staff nodes:
+    node_labels += ['teacher']*numTeachers
+    node_labels += ['staff']*numStaff
+
+    # Create the teacher/staff subnetwork, empty for now:
+    farz_params.update({'n':numTeachers+numStaff, 'k':num_teacher_staff_communities, 'm':int(teacher_staff_degree/2.0)})
+    teacherstaffNetwork, teacherstaffCommunityLabels = FARZ.generate(farz_params=farz_params)
+
+    networks['school-teacherstaffonly'] = teacherstaffNetwork
+
+    # Combine the teacher/staff network block with the student network block:
+    schoolAdjMatrix = scipy.sparse.block_diag([networkx.adjacency_matrix(studentNetwork), networkx.adjacency_matrix(teacherstaffNetwork)])
+
+    # Generate a networkx Graph for the overall network:
+    networks['school'] = networkx.Graph(schoolAdjMatrix)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Connect students with their set of teachers
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    studentIDs = list(range(totalNumStudents))
+    teacherIDs = list(range(totalNumStudents, totalNumStudents+num_teachers))
+    staffIDs   = list(range(totalNumStudents+num_teachers, totalNumStudents+numTeachers+numStaff))
+
+    teacherIDs_studentIDs = {}
+
+    for studentID in studentIDs:
+        selectedTeachers = []
+        for c in range(num_classes_per_student):
+            studentGradeLevel   = int(studentID/num_students_per_grade)
+            classLevel          = np.random.choice(list(range(num_grades)), p=classlevel_probs[studentGradeLevel])
+            classLevel_teachers = teacherIDs[int(len(teacherIDs)/num_grades)*classLevel : int(len(teacherIDs)/num_grades)*(classLevel+1)+1]
+            
+            validTeacher = False
+            while(not validTeacher):
+                selectedTeacherID   = np.random.choice(classLevel_teachers)
+                if(selectedTeacherID not in selectedTeachers):
+                    validTeacher = True
+            
+            networks['school'].add_edge(selectedTeacherID, studentID)
+
+            try: 
+                teacherIDs_studentIDs[selectedTeacherID].append(studentID)
+            except KeyError: 
+                teacherIDs_studentIDs[selectedTeacherID] = [studentID]
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Connect any nodes with zero edges to at least one node:
+    for u in [node for node, degree in networks['school'].degree() if degree == 0]:
+        if(u in studentIDs):
+            networks['school'].add_edge(u, np.random.choice(studentIDs))
+        else:
+            networks['school'].add_edge(u, np.random.choice(teacherIDs))
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Convenience for visualization:
+    networkx.set_edge_attributes(networks['school'], 1, 'layout_weight')
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Determine which students occupy the same household
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if(connect_students_in_households):
+        
+        # Using 2016 (latest) census data: https://www2.census.gov/programs-surveys/demo/tables/families/2016/cps-2016/tabf1-all.xls
+        # Of US households with at least 1 child age 12-17 (approx high school age)...
+        #   11,701 (71%) have 1 child age 12-17
+        #   4,133  (25%) have 2 children age 12-17
+        #   740    (4%)  have 3+ children age 12-17
+
+        networks['households'] = networkx.classes.function.create_empty_copy(networks['school'])
+
+        # For each student, determine how many other high school students are in their household,
+        # and strongly connect high school students in the same household.
+        studentsNeedingHousehold = list(range(totalNumStudents))
+        np.random.shuffle(studentsNeedingHousehold)
+
+        householdEdges = []
+
+        counter=0
+        while(len(studentsNeedingHousehold) > 0):
+
+            focalStudentID = studentsNeedingHousehold.pop()
+
+            numHSHousemates = min( np.random.choice([0, 1, 2], p=[0.71, 0.25, 0.04]), len(studentsNeedingHousehold) )
+
+            # Draw another student from the school, ensuring housemates (siblings) aren't in same grade:
+            hsHousemates = []
+            attempts     = 0
+            while(len(hsHousemates) < numHSHousemates and attempts < 10):
+                otherStudentID    = studentsNeedingHousehold.pop()
+                focalStudentGrade = [key for key, value in grades_studentIDs.items() if focalStudentID in value][0]
+                otherStudentGrade = [key for key, value in grades_studentIDs.items() if otherStudentID in value][0]
+                if(focalStudentGrade != otherStudentGrade):
+                    # Create an edge between focal student and their high school housemates:
+                    networks['households'].add_edge(focalStudentID, otherStudentID)
+                    hsHousemates.append(otherStudentID)
+                    # Force all housemates to be in the same school block:
+                    if(block_by_household):
+                        studentIDs_studentBlocks[otherStudentID] = studentIDs_studentBlocks[focalStudentID]
+                else:
+                    # Put this otherStudent back in the studentsNeedingHousehold list:
+                    studentsNeedingHousehold.append(otherStudentID)
+                attempts += 1
+            # If 3 students in household, connect the 2nd and 3rd drawn housemates
+            if(len(hsHousemates) == 2):
+                networks['households'].add_edge(hsHousemates[0], hsHousemates[-1])
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Create versions of the network representing different subgroups being onsite 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # networks['onsite-all']  = networks['school']
+    networks['offsite-all'] = networkx.classes.function.create_empty_copy(networks['school'])
+
+    if(num_student_blocks > 1):
+        for block in range(1, num_student_blocks+1):
+            # Create a copy of the full network to be modified
+            networks['onsite-block'+str(block)] = networks['school'].copy()
+            # Iterate over students, removing out-of-block students from this network:
+            for studentID, studentBlock in studentIDs_studentBlocks.items():
+                if(studentBlock == block):
+                    # Do nothing, keep this student in the onsite network for this block
+                    pass
+                else:
+                    # Remove edges for student's not in the current block
+                    studentEdges = list( networks['onsite-block'+str(block)].edges(studentID) )
+                    networks['onsite-block'+str(block)].remove_edges_from(studentEdges)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Add household edges to all networks 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # for networkName, network in networks.items():
+    #     if('school-teacherstaffonly' == networkName):
+    #         continue
+    #     network.add_edges_from(householdEdges, layout_weight=0.01)
+
+
+    network_info = {'studentIDs':               studentIDs,
+                    'teacherIDs':               teacherIDs,
+                    'staffIDs':                 staffIDs,
+                    'grades_studentIDs':        grades_studentIDs,
+                    'communities_studentIDs':   communities_studentIDs,
+                    'teacherIDs_studentIDs':    teacherIDs_studentIDs,
+                    'studentIDs_studentBlocks': studentIDs_studentBlocks,
+                    'node_labels':              node_labels }
+
+    return networks, network_info
+
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def apply_social_distancing(network, contact_drop_prob, distancing_compliance=True):
