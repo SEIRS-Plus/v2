@@ -1,7 +1,6 @@
 from seirsplus.models.compartment_model_builder import *
 from seirsplus import networks
-from seirsplus.utils import distributions
-from seirsplus.utils.distributions import gamma_dist
+from seirsplus.utils import gamma_dist
 from hypothesis.extra import numpy
 from hypothesis import given, strategies as st
 

@@ -4,10 +4,10 @@ from networkx.classes.function import nodes
 from numpy.core.fromnumeric import size
 #from seirsplus.models.compartment_model_builder import CompartmentModelBuilder
 from seirsplus.models.compartment_network_model import CompartmentNetworkModel
-from seirsplus.models.sarscov2_network_model import SARSCoV2NetworkModel
+#from seirsplus.models.sarscov2_network_model import SARSCoV2NetworkModel
 from seirsplus.networks import *
-from seirsplus.utils import distributions
 import numpy as np
+import pandas as pd
 from hypothesis import given, strategies as st, extra
 import math
 
