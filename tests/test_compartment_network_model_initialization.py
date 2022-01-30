@@ -159,5 +159,7 @@ class TestCompartmentNetworkModelInitialization:
         self.model.process_local_transm_offsets(transm_dict, "simple_network")
         assert_equal(transm_dict["offsets"]["simple_network"], two_d_offset_array)
 
+        # TODO: This seems to legitimately fail...
+
 
 
