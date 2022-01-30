@@ -2,9 +2,9 @@ from hypothesis.strategies._internal.core import booleans, sampled_from
 from hypothesis.strategies._internal.numbers import integers
 from networkx.classes.function import nodes
 from numpy.core.fromnumeric import size
-#from seirsplus.models.compartment_model_builder import CompartmentModelBuilder
+from seirsplus.models.compartment_model_builder import CompartmentModelBuilder
 from seirsplus.models.compartment_network_model import CompartmentNetworkModel
-#from seirsplus.models.sarscov2_network_model import SARSCoV2NetworkModel
+from seirsplus.models.sarscov2_network_model import SARSCoV2NetworkModel
 from seirsplus.networks import *
 import numpy as np
 import pandas as pd
@@ -14,7 +14,7 @@ import math
 # ------------------------
 
 # Instantiate a FARZ network
-N = 1000
+N = 200
 MEAN_DEGREE = 10
 MEAN_CLUSTER_SIZE = 10
 CLUSTER_INTERCONNECTEDNESS = 0.25
@@ -40,18 +40,17 @@ networks = {"network": network}
 
 
 # Instantiate the model:
-
 model = CompartmentNetworkModel(
     compartments="./tests/testsim_scripts/compartments_SARSCoV2_workplacenet.json",
     networks=networks,
     transition_mode="time_in_state",
-
 )
 
 @given(prevalence=st.floats(min_value=0.01, max_value=1.0))
 def test_set_initial_prevalence(prevalence):
     model.set_initial_prevalence('E', prevalence)
     assert(model.compartments['E']["initial_prevalence"] == prevalence)
+
 
 @given(node=st.integers(min_value=0, max_value=N-1), state=st.characters(whitelist_categories='L', whitelist_characters=['S', 'E', 'P', 'I', 'A', 'R']))
 def test_set_state(node, state):
