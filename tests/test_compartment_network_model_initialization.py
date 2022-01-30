@@ -26,64 +26,64 @@ class TestCompartmentNetworkModelInitialization:
         self.model.set_initial_prevalence('E', initial_prevalence)
 
 
-    def test_process_local_transmissibility_2d_array(self):
+    def test_process_network_transmissibility_2d_array(self):
 
         two_d_transmissibility_array = np.array([[0.1, 0.2, 0], [0.3, 0.4, 0], [0, 0, 0.5]])
         transm_dict = {"simple_network": two_d_transmissibility_array, "exogenous": 0.0}
 
-        self.model.process_local_transmissibility(transm_dict, "simple_network")
+        self.model.process_network_transmissibility(transm_dict, "simple_network")
         assert_equal(transm_dict["simple_network"], two_d_transmissibility_array)
 
-        # TODO: We should check that transmissibility is zero for pairs not connected in the network. If we add that check,
-        #  test it here.
+        # TODO: We should check in the code that transmissibility is zero for pairs not connected in the network. If we
+        #  add that check, test it here.
 
 
-    def test_process_local_transmissibility_1d_array(self):
+    def test_process_network_transmissibility_1d_array(self):
         one_d_transmissibility_vector = [0.3, 0.6, 0.9]
 
         # By infected
         transm_dict = {"simple_network": one_d_transmissibility_vector, "exogenous": 0.0, "pairwise_mode": "infected"}
-        self.model.process_local_transmissibility(transm_dict, "simple_network")
+        self.model.process_network_transmissibility(transm_dict, "simple_network")
 
         expected = np.array([[0.3, 0.6, 0], [0.3, 0.6, 0], [0, 0, 0.9]])
         assert_equal(transm_dict["simple_network"].todense(), expected)
 
         # By infectee
         transm_dict = {"simple_network": one_d_transmissibility_vector, "exogenous": 0.0, "pairwise_mode": "infectee"}
-        self.model.process_local_transmissibility(transm_dict, "simple_network")
+        self.model.process_network_transmissibility(transm_dict, "simple_network")
 
         expected = np.array([[0.3, 0.3, 0], [0.6, 0.6, 0], [0, 0, 0.9]])
         assert_equal(transm_dict["simple_network"].todense(), expected)
 
         # By min
         transm_dict = {"simple_network": one_d_transmissibility_vector, "exogenous": 0.0, "pairwise_mode": "min"}
-        self.model.process_local_transmissibility(transm_dict, "simple_network")
+        self.model.process_network_transmissibility(transm_dict, "simple_network")
 
         expected = np.array([[0.3, 0.3, 0], [0.3, 0.6, 0], [0, 0, 0.9]])
         assert_equal(transm_dict["simple_network"].todense(), expected)
 
         # By max
         transm_dict = {"simple_network": one_d_transmissibility_vector, "exogenous": 0.0, "pairwise_mode": "max"}
-        self.model.process_local_transmissibility(transm_dict, "simple_network")
+        self.model.process_network_transmissibility(transm_dict, "simple_network")
 
         expected = np.array([[0.3, 0.6, 0], [0.6, 0.6, 0], [0, 0, 0.9]])
         assert_equal(transm_dict["simple_network"].todense(), expected)
 
         # By mean
         transm_dict = {"simple_network": one_d_transmissibility_vector, "exogenous": 0.0, "pairwise_mode": "mean"}
-        self.model.process_local_transmissibility(transm_dict, "simple_network")
+        self.model.process_network_transmissibility(transm_dict, "simple_network")
 
         expected = np.array([[0.3, 0.45, 0], [0.45, 0.6, 0], [0, 0, 0.9]])
         assert_almost_equal(transm_dict["simple_network"].todense(), expected, decimal=5)
 
 
-    def test_process_local_transmissibility_single_number(self):
+    def test_process_network_transmissibility_single_number(self):
 
         transmissibility = 0.5
 
         for pairwise_mode in ["infected", "infectee", "min", "max", "mean"]:
             transm_dict = {"simple_network": transmissibility, "exogenous": 0.0, "pairwise_mode": pairwise_mode}
-            self.model.process_local_transmissibility(transm_dict, "simple_network")
+            self.model.process_network_transmissibility(transm_dict, "simple_network")
 
             expected = np.array([[0.5, 0.5, 0], [0.5, 0.5, 0], [0, 0, 0.5]])
             assert_equal(transm_dict["simple_network"].todense(), expected)
@@ -151,15 +151,15 @@ class TestCompartmentNetworkModelInitialization:
         assert_equal(transitions_dict["I"]["prob"], np.array([0.6, 0.6, 0.6]).reshape(3, 1))
 
 
-    def test_process_local_transm_offsets(self):
+    def test_process_network_transm_offsets(self):
+
+        # Unfinished
 
         two_d_offset_array = np.array([[0.1, 0.2, 0], [0.3, 0.4, 0], [0, 0, 0.5]])
         transm_dict = {"offsets": {"simple_network": two_d_offset_array}, "exogenous": 0.0}
 
-        self.model.process_local_transm_offsets(transm_dict, "simple_network")
+        self.model.process_network_transm_offsets(transm_dict, "simple_network")
         assert_equal(transm_dict["offsets"]["simple_network"], two_d_offset_array)
-
-        # TODO: This seems to legitimately fail...
 
 
 
