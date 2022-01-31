@@ -57,7 +57,7 @@ def test_add_compartments():
 
 @given(m=st.floats(0.01, 10), co=st.floats(0.01, 10))
 def test_gamma_dist(m, co):
-    dist = gamma_dist(m, co, N)
+    dist = distributions.gamma_dist(m, co, N)
     assert(len(dist) == N)
 
 @given(s=st.floats(0.01))
@@ -66,14 +66,12 @@ def test_set_susceptibility(s):
     test_compartment.add_compartments(["S", "E", "P", "I", "A", "R"])
     test_compartment.set_susceptibility("S", to=["P", "I", "A"], susceptibility=s)
 
-
 @given(t=st.floats(0.01))
 def test_set_transmissibility(t):
     test_compartment = CompartmentModelBuilder()
     test_compartment.add_compartments(["S", "E", "P", "I", "A", "R"])
     test_compartment.set_susceptibility("S", to=["P", "I", "A"], susceptibility=1.0)
     test_compartment.set_transmissibility(["P", "I", "A"], "network", transmissibility=t)
-
 
 @given(p=st.floats(0.01), latent_period_test=st.floats(0.01), pres_per=st.floats(0.01), pct_asympt=st.floats(0.01,1.0), symp_per=st.floats(0.01))
 def test_add_transition(p, latent_period_test, pres_per, pct_asympt, symp_per):

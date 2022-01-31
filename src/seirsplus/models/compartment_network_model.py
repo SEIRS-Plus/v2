@@ -1488,14 +1488,12 @@ class CompartmentNetworkModel():
     ########################################################
 
 
-    def introduce_random_exposures(self, num, compartment='all', exposed_to='any', post_exposure_state='random_transition', node='all'):
+    def introduce_random_exposures(self, num, compartment='all', exposed_to='any', post_exposure_state='random_transition'):
         num = int(num)
         compartments      = list(self.compartments.keys()) if compartment=='all' else utils.treat_as_list(compartment)
         infectiousStates  = list(self.compartments.keys()) if exposed_to=='any'  else utils.treat_as_list(exposed_to)
-        nodes             = list(range(self.pop_size)) if isinstance(node, str) and node=='all' else utils.treat_as_list(node)
         exposedNodes = []
         for exposure in range(num):
-            nodesXXX = [i for i in nodes if i not in exposedNodes]
             exposure_susceptibilities = []
             for compartment in compartments:
                 for infectiousState in infectiousStates:
@@ -1503,16 +1501,17 @@ class CompartmentNetworkModel():
                         exposure_susceptibilities.append({'susc_state': compartment, 
                                                           'inf_state': infectiousState, 
                                                           'susceptibilities': self.compartments[compartment]['susceptibilities'][infectiousState]['susceptibility'].ravel() * self.mask_susceptibility.ravel(),
-                                                          'mean_susceptibility': np.mean(self.compartments[compartment]['susceptibilities'][infectiousState]['susceptibility'][nodesXXX] * self.mask_susceptibility[nodesXXX]),
-                                                          'susc_state_prevalence': np.count_nonzero(self.X[nodesXXX]==self.stateID[compartment])
+                                                          'mean_susceptibility': np.mean(self.compartments[compartment]['susceptibilities'][infectiousState]['susceptibility'] * self.mask_susceptibility),
+                                                          'susc_state_prevalence': self.get_count_by_compartment(compartment),
                                                           })
             exposureTypeProbs = [d['mean_susceptibility']*d['susc_state_prevalence'] for d in exposure_susceptibilities]/np.sum([d['mean_susceptibility']*d['susc_state_prevalence'] for d in exposure_susceptibilities])
             if(np.sum(exposureTypeProbs) > 0): # may be == 0 if the susceptibility of all individuals is 0
                 exposureType      = np.random.choice(exposure_susceptibilities, p=exposureTypeProbs)
-                exposableNodes    = [i for i in nodesXXX if self.X[i]==self.stateID[exposureType['susc_state']]]
+                exposableNodes    = [i for i in range(self.pop_size) if self.X[i]==self.stateID[exposureType['susc_state']]]
                 if(len(exposableNodes) > 0):
                     exposedNode    = np.random.choice(exposableNodes, p=exposureType['susceptibilities'][exposableNodes]/np.sum(exposureType['susceptibilities'][exposableNodes]))
                     exposedNodes.append(exposedNode)
+                    #--------------------
                     if(post_exposure_state == 'random_transition'):
                         exposureTransitions = self.compartments[exposureType['susc_state']]['susceptibilities'][exposureType['inf_state']]['transitions']
                         exposureTransitionsActiveStatuses = [exposureTransitions[dest]['path_taken'].ravel()[exposedNode] for dest in exposureTransitions]
@@ -1525,9 +1524,7 @@ class CompartmentNetworkModel():
                         self.add_case_log(infectee_node=exposedNode, infector_node=None, infection_transition={'from':self.get_node_compartment(exposedNode), 'to':destState, 'type':'introduction'})
                     #--------------------
                     self.set_state(exposedNode, destState, update_data_series=False) # too slow to update data series after every node state update, will updata data series after loop
-                    self.update_data_series()
-                else:
-                    pass
+                self.update_data_series()
         return exposedNodes
 
 
