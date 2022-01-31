@@ -927,10 +927,11 @@ class CompartmentNetworkModel():
                     probs.append(transn_dict[poststate]['prob']) 
                 else:
                     print("Multiple transitions specified, but not all probabilities provided: Assuming equiprobable.")
-                    transn_dict[poststate]['prob'] = np.full(1/len(poststates), shape=(self.pop_size,1))
+                    transn_dict[poststate]['prob'] = np.full(fill_value=1/len(poststates), shape=(self.pop_size,1))
                     probs.append(transn_dict[poststate]['prob']) 
         probs = np.array(probs).reshape((len(poststates), self.pop_size))
         #----------------------------------------
+    
         rands = [poststates[np.random.choice(len(poststates), p=probs[:,i])] for i in range(self.pop_size)]
         #----------------------------------------
         for poststate in transn_dict:

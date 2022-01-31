@@ -1,7 +1,6 @@
 from seirsplus.models.compartment_model_builder import *
 from seirsplus import networks
-from seirsplus.utils import distributions
-from seirsplus.utils.distributions import gamma_dist
+from seirsplus.utils import gamma_dist
 from hypothesis.extra import numpy
 from hypothesis import given, strategies as st
 
@@ -11,8 +10,9 @@ MEAN_DEGREE = 10
 MEAN_CLUSTER_SIZE = 10
 CLUSTER_INTERCONNECTEDNESS = 0.25
 network, network_info = networks.generate_workplace_contact_network(
+    N=N,
     num_cohorts=1,
-    num_nodes_per_cohort=N,
+    num_nodes_per_cohort=100,
     num_teams_per_cohort=int(N / MEAN_CLUSTER_SIZE),
     mean_intracohort_degree=MEAN_DEGREE,
     farz_params={
@@ -34,15 +34,15 @@ networks = {"network": network}
 # Instantiate the model:
 compartmentModel = CompartmentModelBuilder()
 
-latent_period = distributions.gamma_dist(mean=3.0, coeffvar=0.6, N=N)
-presymptomatic_period = distributions.gamma_dist(mean=2.2, coeffvar=0.5, N=N)
-symptomatic_period = distributions.gamma_dist(mean=4.0, coeffvar=0.4, N=N)
+latent_period =gamma_dist(mean=3.0, coeffvar=0.6, N=N)
+presymptomatic_period = gamma_dist(mean=2.2, coeffvar=0.5, N=N)
+symptomatic_period = gamma_dist(mean=4.0, coeffvar=0.4, N=N)
 infectious_period = presymptomatic_period + symptomatic_period
 pct_asymptomatic = 0.3
 
 R0_mean = 3.0
 R0_cv = 2.0
-R0 = distributions.gamma_dist(R0_mean, R0_cv, N)
+R0 = gamma_dist(R0_mean, R0_cv, N)
 transmissibility = 1 / infectious_period * R0
 
 def test_compartment_model_builder(test_compartment=compartmentModel):
@@ -57,7 +57,7 @@ def test_add_compartments():
 
 @given(m=st.floats(0.01, 10), co=st.floats(0.01, 10))
 def test_gamma_dist(m, co):
-    dist = distributions.gamma_dist(m, co, N)
+    dist = gamma_dist(m, co, N)
     assert(len(dist) == N)
 
 @given(s=st.floats(0.01))
