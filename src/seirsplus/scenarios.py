@@ -601,11 +601,11 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                                 elif(testResult==True and testValidity==False):  totalNumFalsePositives += 1
                                 elif(testResult==False and testValidity==True):  totalNumTrueNegatives += 1
                                 elif(testResult==False and testValidity==False): totalNumFalseNegatives += 1
-                            if(numNegativeResults==num_deisolation_tests):
+                            if(numNegativeResults > 0 and numNegativeResults==num_deisolation_tests):
                                 # Set this individual to exit isolation:
                                 model.set_isolation(testIndividual, False)
                                 numDeisolating += 1
-                            else:
+                            elif(numNegativeResults < num_deisolation_tests):
                                 numPositive_deisolation += 1
                             
                     #---------------------------------------------

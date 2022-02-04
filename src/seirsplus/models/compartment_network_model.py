@@ -1495,7 +1495,7 @@ class CompartmentNetworkModel():
         nodes             = list(range(self.pop_size)) if isinstance(node, str) and node=='all' else utils.treat_as_list(node)
         exposedNodes = []
         for exposure in range(num):
-            nodesXXX = [i for i in nodes if i not in exposedNodes]
+            nodes_cur = [i for i in nodes if i not in exposedNodes]
             exposure_susceptibilities = []
             for compartment in compartments:
                 for infectiousState in infectiousStates:
@@ -1503,13 +1503,13 @@ class CompartmentNetworkModel():
                         exposure_susceptibilities.append({'susc_state': compartment, 
                                                           'inf_state': infectiousState, 
                                                           'susceptibilities': self.compartments[compartment]['susceptibilities'][infectiousState]['susceptibility'].ravel() * self.mask_susceptibility.ravel(),
-                                                          'mean_susceptibility': np.mean(self.compartments[compartment]['susceptibilities'][infectiousState]['susceptibility'][nodesXXX] * self.mask_susceptibility[nodesXXX]),
-                                                          'susc_state_prevalence': np.count_nonzero(self.X[nodesXXX]==self.stateID[compartment])
+                                                          'mean_susceptibility': np.mean(self.compartments[compartment]['susceptibilities'][infectiousState]['susceptibility'][nodes_cur] * self.mask_susceptibility[nodes_cur]),
+                                                          'susc_state_prevalence': np.count_nonzero(self.X[nodes_cur]==self.stateID[compartment])
                                                           })
             exposureTypeProbs = [d['mean_susceptibility']*d['susc_state_prevalence'] for d in exposure_susceptibilities]/np.sum([d['mean_susceptibility']*d['susc_state_prevalence'] for d in exposure_susceptibilities])
             if(np.sum(exposureTypeProbs) > 0): # may be == 0 if the susceptibility of all individuals is 0
                 exposureType      = np.random.choice(exposure_susceptibilities, p=exposureTypeProbs)
-                exposableNodes    = [i for i in nodesXXX if self.X[i]==self.stateID[exposureType['susc_state']]]
+                exposableNodes    = [i for i in nodes_cur if self.X[i]==self.stateID[exposureType['susc_state']]]
                 if(len(exposableNodes) > 0):
                     exposedNode    = np.random.choice(exposableNodes, p=exposureType['susceptibilities'][exposableNodes]/np.sum(exposureType['susceptibilities'][exposableNodes]))
                     exposedNodes.append(exposedNode)
