@@ -1490,12 +1490,19 @@ class CompartmentNetworkModel():
 
     def introduce_random_exposures(self, num, compartment='all', exposed_to='any', post_exposure_state='random_transition', node='all'):
         num = int(num)
-        compartments      = list(self.compartments.keys()) if compartment=='all' else utils.treat_as_list(compartment)
-        infectiousStates  = list(self.compartments.keys()) if exposed_to=='any'  else utils.treat_as_list(exposed_to)
-        nodes             = list(range(self.pop_size)) if isinstance(node, str) and node=='all' else utils.treat_as_list(node)
+        compartments       = list(self.compartments.keys()) if compartment=='all' else utils.treat_as_list(compartment)
+        infectiousStates   = list(self.compartments.keys()) if exposed_to=='any'  else utils.treat_as_list(exposed_to)
+        nodes              = list(range(self.pop_size)) if isinstance(node, str) and node=='all' else utils.treat_as_list(node)
+        # Create a list to keep track of which nodes are eligible for exposure consideration:
+        # - not eligible (false) if not in nodes arg list or already been exposed.
+        # - this implementation is so that node_cur can be created in each loop iter 
+        #   in O(N) via indexing operation rather than O(N^2) via 'is in' operation
+        nodes_boolEligible = [False for i in range(self.pop_size)]
+        for node in nodes:
+            nodes_boolEligible[node] = True
         exposedNodes = []
         for exposure in range(num):
-            nodes_cur = [i for i in nodes if i not in exposedNodes]
+            nodes_cur = [i for i in nodes if nodes_boolEligible[i]]
             exposure_susceptibilities = []
             for compartment in compartments:
                 for infectiousState in infectiousStates:
@@ -1513,6 +1520,7 @@ class CompartmentNetworkModel():
                 if(len(exposableNodes) > 0):
                     exposedNode    = np.random.choice(exposableNodes, p=exposureType['susceptibilities'][exposableNodes]/np.sum(exposureType['susceptibilities'][exposableNodes]))
                     exposedNodes.append(exposedNode)
+                    nodes_boolEligible[exposedNode] = False
                     if(post_exposure_state == 'random_transition'):
                         exposureTransitions = self.compartments[exposureType['susc_state']]['susceptibilities'][exposureType['inf_state']]['transitions']
                         exposureTransitionsActiveStatuses = [exposureTransitions[dest]['path_taken'].ravel()[exposedNode] for dest in exposureTransitions]
