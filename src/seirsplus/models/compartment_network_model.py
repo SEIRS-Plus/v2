@@ -72,6 +72,21 @@ class CompartmentNetworkModel():
         self.store_Xseries         = store_Xseries
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Initialize data series for tracking node subgroups:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        self.nodeGroupData = None
+        if(node_groups):
+            self.nodeGroupData = {}
+            for groupName, nodeList in node_groups.items():
+                self.nodeGroupData[groupName] = {'nodes':   np.array(nodeList),
+                                                 'mask':    np.in1d(range(self.pop_size), nodeList).reshape((self.pop_size,1)),
+                                                 'counts':  {},
+                                                 'total_isolation_time': 0}
+                # for compartment in self.compartments:
+                #     self.nodeGroupData[groupName]['counts'][compartment]    = np.zeros(self.pop_size*min(len(self.compartments), 10))
+                #     self.nodeGroupData[groupName]['counts'][compartment][0] = np.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.S)
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the compartment model configuration and parameterizations:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.compartments    = {}
@@ -104,19 +119,6 @@ class CompartmentNetworkModel():
 
         self.mask_transmissibility = np.ones((self.pop_size,1))
         self.mask_susceptibility   = np.ones((self.pop_size,1))
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Initialize data series for tracking node subgroups:
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        self.nodeGroupData = None
-        if(node_groups):
-            self.nodeGroupData = {}
-            for groupName, nodeList in node_groups.items():
-                self.nodeGroupData[groupName] = {'nodes':   np.array(nodeList),
-                                                 'mask':    np.in1d(range(self.pop_size), nodeList).reshape((self.pop_size,1))}
-                for compartment in self.compartments:
-                    self.nodeGroupData[groupName][compartment]    = np.zeros(self.pop_size*min(len(self.compartments), 10))
-                    self.nodeGroupData[groupName][compartment][0] = np.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.S)
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize other metadata:
@@ -307,6 +309,12 @@ class CompartmentNetworkModel():
             if(compartment not in self.counts):
                 self.counts[compartment] = (np.zeros_like(self.counts[self.default_state]) if self.default_state is not None and self.default_state in self.counts
                                             else np.zeros(self.pop_size*min(len(self.compartments)+len(new_compartments), 10)))
+
+        if(self.nodeGroupData):
+            for groupName in self.nodeGroupData:
+                for c, compartment in enumerate(new_compartments):
+                    self.nodeGroupData[groupName]['counts'][compartment] = (np.zeros_like(self.nodeGroupData[groupName]['counts'][self.default_state]) if self.default_state is not None and self.default_state in self.nodeGroupData[groupName]['counts']
+                                                                            else np.zeros(self.pop_size*min(len(self.compartments)+len(new_compartments), 10)))
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the model object with the new processed compartments
@@ -664,7 +672,10 @@ class CompartmentNetworkModel():
 
         # Update the current cumulative num cases to the value from the last time point,
         # the value for the current time point will be updated for any new cases below:
-        self.cum_num_cases[self.tidx] = self.cum_num_cases[self.tidx-1]
+        self.cumulative_cases[self.tidx] = self.cumulative_cases[self.tidx-1]
+        if(self.nodeGroupData):
+            for groupName in self.nodeGroupData:
+                self.nodeGroupData[groupName]['cumulative_num_cases'][self.tidx] = self.nodeGroupData[groupName]['cumulative_num_cases'][self.tidx-1]
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Perform updates triggered by event:
@@ -674,7 +685,13 @@ class CompartmentNetworkModel():
             #----------------------------------------
             # Gather and save information about transmission events when they occur:
             if(transition['type'] == 'infection'):
-                self.cum_num_cases[self.tidx] += 1
+                self.cumulative_cases[self.tidx] += 1
+    
+                if(self.nodeGroupData):
+                    for groupName in self.nodeGroupData:
+                        if(transition['node'] in self.nodeGroupData[groupName]['nodes']):
+                            self.nodeGroupData[groupName]['cumulative_num_cases'][self.tidx] += 1
+
                 if(self.track_case_info):
                     self.process_new_case(transition['node'], transition)
             #----------------------------------------
@@ -688,6 +705,10 @@ class CompartmentNetworkModel():
         i_isolated = np.argwhere(self.isolation==1).ravel()
         self.isolation_timer[i_isolated]    -= dt
         self.totalIsolationTime[i_isolated] += dt
+        if(self.nodeGroupData):
+            for groupName in self.nodeGroupData:
+                if(i_isolated in self.nodeGroupData[groupName]['nodes']):
+                    self.nodeGroupData[groupName]['total_isolation_time'] += dt
         # if(self.isolation_period is not None):
         i_exitingIsolation = np.argwhere(self.isolation_timer <= 0).ravel()
         for i in i_exitingIsolation:
@@ -780,15 +801,20 @@ class CompartmentNetworkModel():
         if(self.nodeGroupData):
             for groupName in self.nodeGroupData:
                 for compartment in self.compartments:
-                    self.nodeGroupData[groupName][compartment][self.tidx] = np.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.stateID[compartment])
+                    self.nodeGroupData[groupName]['counts'][compartment][self.tidx] = np.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.stateID[compartment])
                     #------------------------------------
                     if(compartment not in self.excludeFromEffPopSize):
-                        self.nodeGroupData[groupName]['N'][self.tidx] += self.counts[compartment][self.tidx]
+                        self.nodeGroupData[groupName]['counts']['N'][self.tidx] += self.counts[compartment][self.tidx]
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize/reset data series for cumulative num cases:
         if(self.tidx == 0):    
-            self.cum_num_cases    = np.zeros_like(self.counts[self.default_state])
-            self.cum_num_cases[0] = len(self.get_individuals_by_flag(self.prevalence_flags))
+            self.cumulative_cases    = np.zeros_like(self.counts[self.default_state])
+            self.cumulative_cases[0] = len(self.get_individuals_by_flag(self.prevalence_flags))
+
+            if(self.nodeGroupData):
+                for groupName in self.nodeGroupData:
+                    self.nodeGroupData[groupName]['cumulative_num_cases']    = np.zeros_like(self.counts[self.default_state])
+                    self.nodeGroupData[groupName]['cumulative_num_cases'][0] = len([ node for node in self.get_individuals_by_flag(self.prevalence_flags) if node in self.nodeGroupData[groupName]['nodes'] ])
 
 
     ########################################################
@@ -800,7 +826,10 @@ class CompartmentNetworkModel():
         self.tseries = np.pad(self.tseries, [(0, self.pop_size*min(len(self.compartments), 10))], mode='constant', constant_values=0)
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Allocate more entries for the cumulative num cases series:
-        self.cum_num_cases = np.pad(self.cum_num_cases, [(0, self.pop_size*min(len(self.compartments), 10))], mode='constant', constant_values=0)
+        self.cumulative_cases = np.pad(self.cumulative_cases, [(0, self.pop_size*min(len(self.compartments), 10))], mode='constant', constant_values=0)
+        if(self.nodeGroupData):
+            for groupName in self.nodeGroupData:
+                self.nodeGroupData[groupName]['cumulative_num_cases'] = np.pad(self.nodeGroupData[groupName]['cumulative_num_cases'], [(0, self.pop_size*min(len(self.compartments), 10))], mode='constant', constant_values=0)
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Allocate more entries for the data series of counts of nodes in each compartment:
         for compartment in self.compartments:
@@ -821,9 +850,9 @@ class CompartmentNetworkModel():
         if(self.nodeGroupData):
             for groupName in self.nodeGroupData:
                 for compartment in self.compartments:
-                    self.nodeGroupData[groupName][compartment] = np.pad(self.nodeGroupData[groupName][compartment], [(0, self.pop_size*min(len(self.compartments), 10))], mode='constant', constant_values=0)
+                    self.nodeGroupData[groupName]['counts'][compartment] = np.pad(self.nodeGroupData[groupName]['counts'][compartment], [(0, self.pop_size*min(len(self.compartments), 10))], mode='constant', constant_values=0)
                 #------------------------------------
-                self.nodeGroupData[groupName]['N'] = np.pad(self.nodeGroupData[groupName]['N'], [(0, self.pop_size*min(len(self.compartments), 10))], mode='constant', constant_values=0)
+                self.nodeGroupData[groupName]['counts']['N'] = np.pad(self.nodeGroupData[groupName]['counts']['N'], [(0, self.pop_size*min(len(self.compartments), 10))], mode='constant', constant_values=0)
                 #------------------------------------
                 # TODO: Allocate more entries for the data series of counts of nodes that have certain conditions?
                 #        - infected, tested, vaccinated, positive, etc?
@@ -838,7 +867,10 @@ class CompartmentNetworkModel():
         self.tseries = np.array(self.tseries, dtype=float)[:self.tidx+1]
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Finalize the cumulative num cases series:
-        self.cum_num_cases = np.array(self.cum_num_cases, dtype=float)[:self.tidx+1]
+        self.cumulative_cases = np.array(self.cumulative_cases, dtype=float)[:self.tidx+1]
+        if(self.nodeGroupData):
+            for groupName in self.nodeGroupData:
+                self.nodeGroupData[groupName]['cumulative_num_cases'] = np.array(self.nodeGroupData[groupName]['cumulative_num_cases'], dtype=float)[:self.tidx+1]
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Finalize the data series of counts of nodes in each compartment:
         for compartment in self.compartments:
@@ -855,26 +887,43 @@ class CompartmentNetworkModel():
         if(self.nodeGroupData):
             for groupName in self.nodeGroupData:
                 for compartment in self.compartments:
-                    self.nodeGroupData[groupName][compartment] = np.array(self.nodeGroupData[groupName][compartment], dtype=float)[:self.tidx+1]
+                    self.nodeGroupData[groupName]['counts'][compartment] = np.array(self.nodeGroupData[groupName]['counts'][compartment], dtype=float)[:self.tidx+1]
                 #------------------------------------
-                self.nodeGroupData[groupName]['N'] = np.array(self.nodeGroupData[groupName]['N'], dtype=float)[:self.tidx+1]
+                self.nodeGroupData[groupName]['counts']['N'] = np.array(self.nodeGroupData[groupName]['counts']['N'], dtype=float)[:self.tidx+1]
                 #------------------------------------
                 # TODO: Finalize the data series of counts of nodes that have certain conditions?
                 #        - infected, tested, vaccinated, positive, etc?
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Calculate concurrent case time series for outputs:
+        self.concurrent_cases = np.zeros_like(self.counts[self.default_state])
+        for case_comp in self.get_compartments_by_flag(self.prevalence_flags):
+            self.concurrent_cases += self.counts[case_comp]
+        if(self.nodeGroupData):
+            for groupName in self.nodeGroupData:
+                self.nodeGroupData[groupName]['concurrent_num_cases'] = np.zeros_like(self.nodeGroupData[groupName]['counts'][self.default_state])
+                for case_comp in self.get_compartments_by_flag(self.prevalence_flags):
+                    self.nodeGroupData[groupName]['concurrent_num_cases'] += self.nodeGroupData[groupName]['counts'][case_comp]
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Compile summary results
-        self.results = { 'pop_size': self.pop_size,
-                         'cumulative_num_cases': np.max(self.cum_num_cases),
-                         'total_isolation_time': self.totalIsolationTime }
+        self.results = { 'pop_size':              int(self.pop_size),
+                         'cumulative_num_cases':  int(np.max(self.cumulative_cases)),
+                         'peak_concurrent_cases': int(np.max(self.concurrent_cases)),
+                         'total_isolation_time':  np.sum(self.totalIsolationTime) }
+        if(self.nodeGroupData):
+            for groupName in self.nodeGroupData:
+                self.results.update({ 'group_size_'+groupName:            int(len(self.nodeGroupData[groupName]['nodes'])),
+                                      'cumulative_num_cases_'+groupName:  int(np.max(self.nodeGroupData[groupName]['cumulative_num_cases'])),
+                                      'peak_concurrent_cases_'+groupName: int(np.max(self.nodeGroupData[groupName]['concurrent_num_cases'])),
+                                      'total_isolation_time_'+groupName:  self.nodeGroupData[groupName]['total_isolation_time'] })
         for compartment in self.compartments:
-            self.results.update({ 'total_count_'+str(compartment):  int(self.get_count_by_compartment(compartment)),
+            self.results.update({ 'final_count_'+str(compartment):  int(self.get_count_by_compartment(compartment)),
                                   'peak_count_'+str(compartment):   int(np.max(self.counts[compartment])) })
-            self.results.update({ 'total_pct_'+str(compartment):    self.results['total_count_'+str(compartment)]/self.pop_size,
+            self.results.update({ 'final_pct_'+str(compartment):    self.results['final_count_'+str(compartment)]/self.pop_size,
                                   'peak_pct_'+str(compartment):     self.results['peak_count_'+str(compartment)]/self.pop_size})
         for flag in self.allCompartmentFlags.union(self.allNodeFlags):
-            self.results.update({ 'total_count_'+str(flag):         int(self.get_count_by_flag(flag)),
+            self.results.update({ 'final_count_'+str(flag):         int(self.get_count_by_flag(flag)),
                                   'peak_count_'+str(flag):          int(np.max(self.flag_counts[flag])) })
-            self.results.update({ 'total_pct_'+str(flag):           self.results['total_count_'+str(flag)]/self.pop_size,
+            self.results.update({ 'final_pct_'+str(flag):           self.results['final_count_'+str(flag)]/self.pop_size,
                                   'peak_pct_'+str(flag):            self.results['peak_count_'+str(flag)]/self.pop_size})
 
     
@@ -1092,6 +1141,18 @@ class CompartmentNetworkModel():
                 # Set initial counts for each flag:
                 flag_count = len(self.get_individuals_by_flag(flag))
                 self.flag_counts[flag][0] = flag_count
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Initialize/Reset node group data:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        if(self.nodeGroupData):
+            for groupName in self.nodeGroupData:
+                self.nodeGroupData[groupName]['counts']['N'] = np.zeros(self.pop_size*min(len(self.compartments), 10))
+                for compartment in self.compartments:
+                    # self.nodeGroupData[groupName]['counts'][compartment]    = np.zeros(self.pop_size*min(len(self.compartments), 10))
+                    self.nodeGroupData[groupName]['counts'][compartment][0] = np.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.stateID[compartment])
+                    if(compartment not in self.excludeFromEffPopSize):
+                        self.nodeGroupData[groupName]['counts']['N'][0] += self.nodeGroupData[groupName]['counts'][compartment][0]
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
