@@ -1987,25 +1987,25 @@ class CompartmentNetworkModel():
     ########################################################
 
 
-    def mask(self, node, susc_effectiveness, transm_effectiveness, flag_masked=True):
+    def mask(self, node, susc_effectiveness, transm_effectiveness, flag_masked=True, flag='masked'):
         nodes = list(range(self.pop_size)) if isinstance(node, str) and node=='all' else utils.treat_as_list(node)
         for node in nodes:
             self.mask_susceptibility[node]   = 1.0 - susc_effectiveness
             self.mask_transmissibility[node] = 1.0 - transm_effectiveness
             if(flag_masked):
-                self.add_individual_flag(node, 'masked')
+                self.add_individual_flag(node, flag)
 
 
     ########################################################
 
 
-    def unmask(self, node, unflag_masked=True):
+    def unmask(self, node, unflag_masked=True, flag='masked'):
         nodes = list(range(self.pop_size)) if isinstance(node, str) and node=='all' else utils.treat_as_list(node)
         for node in nodes:
             self.mask_susceptibility[node]   = 1.0
             self.mask_transmissibility[node] = 1.0
             if(unflag_masked):
-                self.remove_individual_flag(node, 'masked')
+                self.remove_individual_flag(node, flag)
 
 
 

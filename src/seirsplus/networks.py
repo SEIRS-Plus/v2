@@ -1192,7 +1192,6 @@ def generate_secondary_school_contact_network(num_grades=4, num_students_per_gra
 
 def apply_social_distancing(network, contact_drop_prob, distancing_compliance=True):
     # Initialize social distancing compliances:
-    print("from within apply_social_distancing")
     distancing_compliance = param_as_bool_array(distancing_compliance, n=network.number_of_nodes())
     # Store compliances as node attributes in the model object (e.g., for case logging purposes)
     # model.set_node_attribute(node=list(range(network.number_of_nodes())), attribute_name='distancing_compliance', attribute_value=distancing_compliance)
