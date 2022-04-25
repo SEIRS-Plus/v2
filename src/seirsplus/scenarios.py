@@ -53,6 +53,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                                     num_deisolation_tests=1,
                                     testing_capacity_max=1.0,
                                     testing_capacity_proactive=0.0,
+                                    testing_accessibility_proactive=1.0,
                                     testing_delay_proactive=0,
                                     testing_delay_onset=1,
                                     testing_delay_onset_groupmate=1,
@@ -167,7 +168,6 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
         #----------------------------------------
         # Initialize individual compliances:
         #----------------------------------------
-        print("from within scenarios")
         isolation_compliance_onset              = utils.param_as_bool_array(isolation_compliance_onset, n=model.pop_size)
         isolation_compliance_onset_groupmate    = utils.param_as_bool_array(isolation_compliance_onset_groupmate, n=model.pop_size)
         isolation_compliance_positive           = utils.param_as_bool_array(isolation_compliance_positive, n=model.pop_size)
@@ -425,7 +425,7 @@ def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=No
                             #---------------------------------------------
                             # Distribute proactive tests randomly
                             #---------------------------------------------
-                            numRandomTests = min( int(model.pop_size*testing_capacity_proactive), len(proactiveTestingPool))
+                            numRandomTests = min( int(model.pop_size * testing_capacity_proactive), int(len(proactiveTestingPool) * testing_accessibility_proactive))
                             if(numRandomTests > 0):
                                 testingSet_proactive = set(np.random.choice(proactiveTestingPool, numRandomTests, replace=False))
 
