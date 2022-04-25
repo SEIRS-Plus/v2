@@ -112,7 +112,7 @@ def generate_community_networks(
     clusters   = {}
     age_groups = {}
 
-    print("Generating random community contact network for N=" +str(N))
+    # print("Generating random community contact network for N=" +str(N))
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Generate the populations' household structure
@@ -233,7 +233,7 @@ def generate_community_networks(
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Randomly construct households following the size and age distributions defined above:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    print("\tPopulating age groups and constructing households...")
+    # print("\tPopulating age groups and constructing households...")
 
     households     = []  # List of dicts storing household data structures and age_groups
     numHouseless   = N   # Number of individuals still to place in households
@@ -417,7 +417,7 @@ def generate_community_networks(
                                         }
 
     for bracket, targetMeanDegree in age_brackets_meanOutOfHHDegree.items():
-        print("\tGenerating out-of-household contact network layer for", bracket, "age group...")
+        # print("\tGenerating out-of-household contact network layer for", bracket, "age group...")
 
         graph_generated       = False
         graph_gen_attempts    = 0
@@ -512,7 +512,7 @@ def generate_community_networks(
     # Generate a network layer representing
     # out-of-household contacts *between* age groups:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    print("\tGenerating contact network layer for out-of-household age group mixing...")
+    # print("\tGenerating contact network layer for out-of-household age group mixing...")
 
     # Instantiate an empty graph on which to construct the mixing network layer:
     mixing_network_layer = networkx.empty_graph(N)
@@ -543,7 +543,7 @@ def generate_community_networks(
     # Generate a network layer representing
     # within household contacts for each household:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    print("\tGenerating within-household contact network layer...")
+    # print("\tGenerating within-household contact network layer...")
 
     # Create a copy of the list of node indices for each age group (graph layer) to draw from:
     sel_indices = {}

@@ -123,7 +123,5 @@
 	"VACCINE_UPTAKE_AGE12TO17":                 0,      
 	"VACCINE_UPTAKE_AGE18TO24":                 0,      
 	"VACCINE_UPTAKE_AGE25TO64":                 0,      
-	"VACCINE_UPTAKE_AGE65PLUS":                 0,      
-	
-	"OUTDIR":                                   "./"    
+	"VACCINE_UPTAKE_AGE65PLUS":                 0         
 }
