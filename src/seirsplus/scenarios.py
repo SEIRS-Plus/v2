@@ -11,13 +11,13 @@ from seirsplus.sim_loops import *
 
 # Example calls
 
-# run_SARSCoV2_interventions_scenario(parameters={'R0_MEAN0': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
+# run_SARSCoV2_interventions_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
 
-# run_SARSCoV2_community_scenario(parameters={'R0_MEAN0': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
+# run_SARSCoV2_community_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
 
-# run_SARSCoV2_primary_school_scenario(parameters={'R0_MEAN0': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
+# run_SARSCoV2_primary_school_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
 
-# run_SARSCoV2_secondary_school_scenario(parameters={'R0_MEAN0': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
+# run_SARSCoV2_secondary_school_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -34,7 +34,7 @@ def run_SARSCoV2_interventions_scenario(model=None, parameters=None, reps=1, met
         params.update(parameters)
 
     if(model is None):
-        model = generate_SARSCoV2_interventions_model(params)
+        model = generate_SARSCoV2_interventions_model
 
     results, caselogs = run_interventions_scenario(model=model, parameters=params, reps=reps, metadata=metadata, outdir=outdir, run_label=run_label, save_results=save_results, save_caselogs=save_caselogs, save_partial_results=save_partial_results, results_columns=results_columns, caselog_columns=caselog_columns, output_file_extn=output_file_extn)
 
@@ -972,7 +972,17 @@ def generate_SARSCoV2_secondary_school_model(parameters=None):
 
 
 
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Example calls
 
+run_SARSCoV2_interventions_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
+
+# run_SARSCoV2_community_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
+
+# run_SARSCoV2_primary_school_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
+
+# run_SARSCoV2_secondary_school_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
 
 
 
