@@ -972,18 +972,3 @@ def generate_SARSCoV2_secondary_school_model(parameters=None):
 
 
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Example calls
-
-run_SARSCoV2_interventions_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
-
-# run_SARSCoV2_community_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
-
-# run_SARSCoV2_primary_school_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
-
-# run_SARSCoV2_secondary_school_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
-
-
-
-
