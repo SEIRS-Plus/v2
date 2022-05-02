@@ -1,830 +1,1022 @@
+# External libraries
 import numpy as np
-
+import itertools
+# seirsplus libraries
+from seirsplus.models.preconfig_disease_models import *
+from seirsplus.networks import *
 from seirsplus import utils
+from seirsplus.sim_loops import *
 
-import time
+#------------------------------
+
+# Example calls
+
+# run_SARSCoV2_interventions_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
+
+# run_SARSCoV2_community_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
+
+# run_SARSCoV2_primary_school_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
+
+# run_SARSCoV2_secondary_school_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def run_SARSCoV2_interventions_scenario(model=None, parameters=None, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, return_model_objects=True, output_file_extn='.csv'):
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load in model and scenario parameter specifications:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load SEIRS+ default parameters for this scenario:
+    params = utils.load_config('scenario_SARSCoV2.json')
+    # Update parameters with any user provided values:
+    if(parameters is not None):
+        params.update(parameters)
+
+    if(model is None):
+        model = generate_SARSCoV2_interventions_model
+
+    results, caselogs, models, params = run_interventions_scenario(model=model, parameters=params, reps=reps, metadata=metadata, outdir=outdir, run_label=run_label, save_results=save_results, save_caselogs=save_caselogs, save_partial_results=save_partial_results, results_columns=results_columns, caselog_columns=caselog_columns, output_file_extn=output_file_extn)
+
+    return results, caselogs, models, params
 
 
-def run_interventions_scenario(model, T, max_dt=0.1, default_dt=0.1, tau_step=None,
-                                    terminate_at_zero_cases=False,
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def run_SARSCoV2_community_scenario(parameters=None, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, return_model_objects=True, output_file_extn='.csv'):
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load in model and scenario parameter specifications:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load SEIRS+ default parameters for this scenario:
+    params = utils.load_config('scenario_SARSCoV2_community.json')
+    # Update parameters with any user provided values:
+    if(parameters is not None):
+        params.update(parameters)
+
+    results, caselogs, models, params = run_interventions_scenario(model=generate_SARSCoV2_community_model, parameters=params, reps=reps, metadata=metadata, outdir=outdir, run_label=run_label, save_results=save_results, save_caselogs=save_caselogs, save_partial_results=save_partial_results, results_columns=results_columns, caselog_columns=caselog_columns, output_file_extn=output_file_extn)
+
+    return results, caselogs, models, params
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def run_SARSCoV2_primary_school_scenario(parameters=None, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, return_model_objects=True, output_file_extn='.csv'):
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load in model and scenario parameter specifications:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load SEIRS+ default parameters for this scenario:
+    params = utils.load_config('scenario_SARSCoV2_primaryschool.json')
+    # Update parameters with any user provided values:
+    if(parameters is not None):
+        params.update(parameters)
+
+    results, caselogs, models, params = run_interventions_scenario(model=generate_SARSCoV2_primary_school_model, parameters=params, reps=reps, metadata=metadata, outdir=outdir, run_label=run_label, save_results=save_results, save_caselogs=save_caselogs, save_partial_results=save_partial_results, results_columns=results_columns, caselog_columns=caselog_columns, output_file_extn=output_file_extn)
+
+    return results, caselogs, models, params
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def run_SARSCoV2_secondary_school_scenario(parameters=None, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, return_model_objects=True, output_file_extn='.csv'):
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load in model and scenario parameter specifications:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load SEIRS+ default parameters for this scenario:
+    params = utils.load_config('scenario_SARSCoV2_secondaryschool.json')
+    # Update parameters with any user provided values:
+    if(parameters is not None):
+        params.update(parameters)
+
+    results, caselogs, models, params = run_interventions_scenario(model=generate_SARSCoV2_secondary_school_model, parameters=params, reps=reps, metadata=metadata, outdir=outdir, run_label=run_label, save_results=save_results, save_caselogs=save_caselogs, save_partial_results=save_partial_results, results_columns=results_columns, caselog_columns=caselog_columns, output_file_extn=output_file_extn)
+
+    return results, caselogs, models, params
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def run_interventions_scenario(model, parameters, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, return_model_objects=True, output_file_extn='.csv'):
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load in model and scenario parameter specifications:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    params = {}
+    params.update(parameters)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Construct parameter sets from combinations of parameters 
+    # with multiple values provided ("swept parameters"):
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Put all parameter values into a list format (for itertools step below):
+    params = {key: ([val] if not isinstance(val, (list, np.ndarray)) else [[]] if len(val) == 0 else val) for key, val in params.items()}
+    paramNames = list(params.keys())
+    paramNames_swept = [key for key, val in params.items() if len(val) >  1]
+    # Generate a list of the full combinatoric product set of all param value lists in params dict:
+    paramSets = list(itertools.product(*list(params.values()))) 
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Initialize data structures for storing results:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if(save_partial_results):
+        results_df_master = None
+        caselog_df_master = None
+    else:
+        results_dfs = []
+        caselog_dfs = []
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Initialize data structures for storing model objects:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    model_objs = {} if(return_model_objects) else None
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # RUN (REPLICATE) SIMULATIONS FOR EACH PARAMETER SET:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    print(f"[ RUNNING SIMULATIONS FOR PARAMETERIZED INTERVENTIONS SCENARIO ]")
+
+    for paramSetNum, paramSet in enumerate(paramSets):
+        paramSetNum += 1 # 1-indexed instead of 0-indexed
+        
+        PARAM_SET = "paramSet"+str(paramSetNum)
+
+        paramSetDict = metadata
+        paramSetDict.update({'PARAM_SET': PARAM_SET })
+        paramSetDict.update({paramNames[i]: paramSet[i] for i in range(len(paramSet))})
+
+        print(f"Running simulations for parameter set {paramSetNum}/{len(paramSets)}: {str({paramNames[i]: paramSet[i] for i in range(len(paramSet)) if paramNames[i] in paramNames_swept})}")
+
+        for rep in range(reps):
+            rep += 1 # 1-indexed instead of 0-indexed
+
+            metadata.update({'rep': rep, 'run_label': run_label})
+
+            print(f"\tsimulation rep {rep}/{reps}...\t\r", end="")
+
+            # Get the model to run (the model fn argument may be a pointer to a function that generates a model):
+            model_obj = model(paramSetDict) if(callable(model)) else copy.deepcopy(model)
+
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Simulate the model scenario:
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            run_interventions_sim(model_obj, 
+                                    # Scenario run time params:
+                                    T = paramSetDict['T'], 
+                                    max_dt = paramSetDict['MAX_DT'], 
+                                    default_dt = paramSetDict['DEFAULT_DT'],
+                                    tau_step=paramSetDict['TAU_STEP'] if isinstance(paramSetDict['TAU_STEP'], (int, float)) and paramSetDict['TAU_STEP'] > 0 else None,
+                                    terminate_at_zero_cases=paramSetDict['TERMINATE_AT_ZERO_CASES'],
                                     # Intervention timing params:
-                                    cadence_dt=1, 
-                                    cadence_cycle_length=28,
-                                    init_cadence_offset=0,
-                                    cadence_presets='default',
-                                    intervention_start_time=0,
-                                    intervention_start_prevalence=0,
-                                    prevalence_flags=['infected'],
-                                    case_introduction_rate=0,
-                                    # State onset intervention params:
-                                    onset_compartments=[], # not yet used
-                                    onset_flags=[], 
-                                    # Network change params:
-                                    network_active_cadences=None,
+                                    cadence_dt = paramSetDict['CADENCE_DT'], 
+                                    cadence_cycle_length = paramSetDict['CADENCE_CYCLE_LENGTH'],
+                                    init_cadence_offset = paramSetDict['INIT_CADENCE_OFFSET'],
+                                    cadence_presets = paramSetDict['CADENCE_PRESETS'],
+                                    intervention_start_time = paramSetDict['INTERVENTION_START_TIME'],
+                                    intervention_start_prevalence = paramSetDict['INTERVENTION_START_PREVALENCE'],
+                                    prevalence_flags = paramSetDict['PREVALENCE_FLAGS'],
+                                    onset_flags = paramSetDict['ONSET_FLAGS'],
+                                    # Case introduction params:
+                                    case_introduction_rate = paramSetDict['CASE_INTRODUCTION_RATE'],
+                                    # Network params:
+                                    network_active_cadences = {network: 'daily' if network!='household' else 'nightly' for network in model_obj.networks},
                                     # Isolation params:
-                                    isolation_period=None,
-                                    isolation_clock_mode='entering_isolation',
-                                    isolation_delay_onset=0,
-                                    isolation_delay_onset_groupmate=0,
-                                    isolation_delay_positive=1,
-                                    isolation_delay_positive_groupmate=1,
-                                    isolation_delay_traced=0,
-                                    isolation_compliance_onset=True, 
-                                    isolation_compliance_onset_groupmate=False,
-                                    isolation_compliance_positive=True,
-                                    isolation_compliance_positive_groupmate=False,
-                                    isolation_compliance_traced=False,
-                                    isolation_exclude_compartments=[],          
-                                    isolation_exclude_flags=[],      
-                                    isolation_exclude_isolated=False,           
-                                    isolation_exclude_afterNumTests=None,       
-                                    isolation_exclude_afterNumVaccineDoses=None,
+                                    isolation_period = paramSetDict['ISOLATION_PERIOD'],
+                                    isolation_delay_onset = paramSetDict['ISOLATION_DELAY_ONSET'],
+                                    isolation_delay_onset_groupmate = paramSetDict['ISOLATION_DELAY_ONSET_GROUPMATE'],
+                                    isolation_delay_positive = paramSetDict['ISOLATION_DELAY_POSITIVE'],
+                                    isolation_delay_positive_groupmate = paramSetDict['ISOLATION_DELAY_POSITIVE_GROUPMATE'],
+                                    isolation_delay_traced = paramSetDict['ISOLATION_DELAY_TRACED'],
+                                    isolation_compliance_onset = paramSetDict['ISOLATION_COMPLIANCE_ONSET'],
+                                    isolation_compliance_onset_groupmate = paramSetDict['ISOLATION_COMPLIANCE_ONSET_GROUPMATE'],
+                                    isolation_compliance_positive = paramSetDict['ISOLATION_COMPLIANCE_POSITIVE'],
+                                    isolation_compliance_positive_groupmate = paramSetDict['ISOLATION_COMPLIANCE_POSITIVE_GROUPMATE'],
+                                    isolation_compliance_traced = paramSetDict['ISOLATION_COMPLIANCE_TRACED'],
+                                    isolation_exclude_compartments=paramSetDict['ISOLATION_EXCLUDE_COMPARTMENTS'],
+                                    isolation_exclude_flags=paramSetDict['ISOLATION_EXCLUDE_FLAGS'],
+                                    isolation_exclude_isolated=bool(paramSetDict['ISOLATION_EXCLUDE_ISOLATED']),
+                                    isolation_exclude_afterNumTests=paramSetDict['ISOLATION_EXCLUDE_AFTERNUMTESTS'] if isinstance(paramSetDict['ISOLATION_EXCLUDE_AFTERNUMTESTS'], (int, float)) and paramSetDict['ISOLATION_EXCLUDE_AFTERNUMTESTS'] > 0 else None,     
+                                    isolation_exclude_afterNumVaccineDoses=paramSetDict['ISOLATION_EXCLUDE_AFTERNUMVACCINEDOSES'] if isinstance(paramSetDict['ISOLATION_EXCLUDE_AFTERNUMVACCINEDOSES'], (int, float)) and paramSetDict['ISOLATION_EXCLUDE_AFTERNUMVACCINEDOSES'] > 0 else None,
                                     # Testing params:
-                                    test_params=None, 
-                                    test_type_proactive=None,
-                                    test_type_onset=None,
-                                    test_type_traced=None,
-                                    test_type_onset_groupmate=None,
-                                    test_type_positive_groupmate=None,
-                                    test_type_deisolation=None, 
-                                    test_result_delay=0,
-                                    proactive_testing_cadence='never',
-                                    proactive_testing_synchronize=True,
-                                    num_deisolation_tests=1,
-                                    testing_capacity_max=1.0,
-                                    testing_capacity_proactive=0.0,
-                                    testing_accessibility_proactive=1.0,
-                                    testing_delay_proactive=0,
-                                    testing_delay_onset=1,
-                                    testing_delay_onset_groupmate=1,
-                                    testing_delay_positive_groupmate=1,
-                                    testing_delay_traced=1, 
-                                    testing_delay_deisolation=5,                                   
-                                    testing_compliance_proactive=1.0,
-                                    testing_compliance_onset=0.0, 
-                                    testing_compliance_onset_groupmate=0.0,
-                                    testing_compliance_positive_groupmate=0.0,
-                                    testing_compliance_traced=0.0,
-                                    testing_compliance_deisolation=0.0,
-                                    testing_exclude_compartments=[],
-                                    testing_exclude_flags=[],
-                                    testing_exclude_isolated=0.0,
-                                    testing_exclude_afterNumTests=None,
-                                    testing_exclude_afterNumVaccineDoses=None,
+                                    test_params=utils.load_config(paramSetDict['TEST_PARAMS_CFG']),
+                                    test_type_proactive = paramSetDict['TEST_TYPE_PROACTIVE'],
+                                    test_type_onset = paramSetDict['TEST_TYPE_ONSET'],
+                                    test_type_traced = paramSetDict['TEST_TYPE_TRACED'],
+                                    test_type_onset_groupmate = paramSetDict['TEST_TYPE_ONSET_GROUPMATE'],
+                                    test_type_positive_groupmate = paramSetDict['TEST_TYPE_POSITIVE_GROUPMATE'],
+                                    test_type_deisolation = paramSetDict['TEST_TYPE_DEISOLATION'],
+                                    test_result_delay={'molecular': paramSetDict['TEST_RESULT_DELAY_MOLECULAR'], 'antigen': paramSetDict['TEST_RESULT_DELAY_ANTIGEN']},
+                                    proactive_testing_cadence = paramSetDict['PROACTIVE_TESTING_CADENCE'],
+                                    proactive_testing_synchronize = paramSetDict['PROACTIVE_TESTING_SYNCHRONIZE'],
+                                    testing_capacity_max = paramSetDict['TESTING_CAPACITY_MAX'],
+                                    testing_capacity_proactive = paramSetDict['TESTING_CAPACITY_PROACTIVE'],
+                                    testing_accessibility_proactive = paramSetDict['TESTING_ACCESSIBILITY_PROACTIVE'],
+                                    num_deisolation_tests = paramSetDict['NUM_DEISOLATION_TESTS'],
+                                    testing_delay_proactive = paramSetDict['TESTING_DELAY_PROACTIVE'],
+                                    testing_delay_onset = paramSetDict['TESTING_DELAY_ONSET'],
+                                    testing_delay_onset_groupmate = paramSetDict['TESTING_DELAY_ONSET_GROUPMATE'],
+                                    testing_delay_positive_groupmate = paramSetDict['TESTING_DELAY_POSITIVE_GROUPMATE'],
+                                    testing_delay_traced = paramSetDict['TESTING_DELAY_TRACED'],
+                                    testing_delay_deisolation = paramSetDict['TESTING_DELAY_DEISOLATION'],
+                                    testing_compliance_proactive = paramSetDict['TESTING_COMPLIANCE_PROACTIVE'],
+                                    testing_compliance_onset = paramSetDict['TESTING_COMPLIANCE_ONSET'],
+                                    testing_compliance_onset_groupmate = paramSetDict['TESTING_COMPLIANCE_ONSET_GROUPMATE'],
+                                    testing_compliance_positive_groupmate = paramSetDict['TESTING_COMPLIANCE_POSITIVE_GROUPMATE'],
+                                    testing_compliance_traced = paramSetDict['TESTING_COMPLIANCE_TRACED'],
+                                    testing_compliance_deisolation = paramSetDict['TESTING_COMPLIANCE_DEISOLATION'],
+                                    testing_exclude_compartments=paramSetDict['TESTING_EXCLUDE_COMPARTMENTS'],
+                                    testing_exclude_flags=paramSetDict['TESTING_EXCLUDE_FLAGS'],
+                                    testing_exclude_isolated=bool(paramSetDict['TESTING_EXCLUDE_ISOLATED']),
+                                    testing_exclude_afterNumTests=paramSetDict['TESTING_EXCLUDE_AFTERNUMTESTS'] if isinstance(paramSetDict['TESTING_EXCLUDE_AFTERNUMTESTS'], (int, float)) and paramSetDict['TESTING_EXCLUDE_AFTERNUMTESTS'] > 0 else None,     
+                                    testing_exclude_afterNumVaccineDoses=paramSetDict['TESTING_EXCLUDE_AFTERNUMVACCINEDOSES'] if isinstance(paramSetDict['TESTING_EXCLUDE_AFTERNUMVACCINEDOSES'], (int, float)) and paramSetDict['TESTING_EXCLUDE_AFTERNUMVACCINEDOSES'] > 0 else None,     
                                     # Tracing params:                                                                       
-                                    tracing_num_contacts=None, 
-                                    tracing_pct_contacts=0,
-                                    tracing_delay=1,
-                                    tracing_compliance=1.0,
-                                    tracing_exclude_networks=[],
+                                    tracing_pct_contacts = paramSetDict['TRACING_PCT_CONTACTS'],
+                                    tracing_delay = paramSetDict['TRACING_DELAY'],
+                                    tracing_compliance = paramSetDict['TRACING_COMPLIANCE'],
+                                    tracing_exclude_networks=paramSetDict['TRACING_EXCLUDE_NETWORKS'],
                                     # Misc. params:
-                                    intervention_groups=None
-                                ):
+                                    intervention_groups=model_obj.intervention_groups if hasattr(model_obj, 'intervention_groups') else None,
+                                    print_updates=bool(paramSetDict['PRINT_UPDATES'])
+                                    )
 
-        if(T>0):
-            model.tmax += T
-        else:
-            return False
-
-        if(max_dt is None and model.transition_mode=='time_in_state'):
-            max_dt = cadence_dt
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Initialize intervention parameters:
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        #----------------------------------------
-        # Initialize intervention-related model parameters:
-        #----------------------------------------
-        model.num_tests         = np.zeros(model.pop_size)
-        model.num_vaccine_doses = np.zeros(model.pop_size)
-
-        #----------------------------------------
-        # Initialize cadence and intervention time parameters:
-        #----------------------------------------
-        interventionOn = False
-        interventionStartTime = None
-
-        # Cadences involve a repeating (default 28 day) cycle starting on a Monday
-        # (0:Mon, 1:Tue, 2:Wed, 3:Thu, 4:Fri, 5:Sat, 6:Sun, 7:Mon, 8:Tues, ...)
-        # For each cadence, actions are done on the cadence intervals included in the associated list.
-        if(cadence_presets == 'default'):
-            cadence_presets   = {
-                                    'semidaily':  [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=0.5)],
-                                    'daily':      [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=1)],
-                                    'nightly':    [int(d) for d in np.arange(start=0.5, stop=cadence_cycle_length, step=1)],
-                                    'weekday':    [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=1) if (d%7!=5 and d%7!=6)],
-                                    'weekend':    [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=1) if (d%7==5 or d%7==6)],
-                                    '3x-weekly':  [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=7/3)],
-                                    '2x-weekly':  [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=7/2)],
-                                    'semiweekly': [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=7/2)],
-                                    'weekly':     [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=7/1)],
-                                    'biweekly':   [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=7*2)],
-                                    'monthly':    [int(d) for d in np.arange(start=0, stop=cadence_cycle_length, step=7*4)],
-                                    'initial':    [0],
-                                    'never':      []
-                                }
-
-        if(init_cadence_offset == 'random'):
-            init_cadence_offset = np.random.choice(range(cadence_cycle_length))
-
-        last_cadence_time  = -1
-
-        #----------------------------------------
-        # Initialize network activity parameters:
-        #----------------------------------------
-        if(network_active_cadences is not None):
-            networkActiveTimes = {network: ([cadence_presets[individual_cadence] for individual_cadence in network_active_cadences] 
-                                                if isinstance(network_active_cadences, (list, np.ndarray)) 
-                                                else [cadence_presets[network_active_cadences[network]]]*model.pop_size) 
-                                            for network in model.networks}
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Update results data with other info:
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Store model/scenario parameter values with results:
+            model_obj.results.update(paramSetDict)
+            # Store disease statistics:
+            model_obj.results.update(model_obj.disease_stats)
+            # Store network statistics:
+            overallNetwork = union_of_networks([network for network in [network['networkx'] for network in model_obj.networks.values()]])
+            model_obj.results.update(network_stats(networks=overallNetwork, names="overall_network", calc_connected_components=True))
+            # Store simulation metadata:
+            model_obj.results.update(metadata)
         
-        #----------------------------------------
-        # Initialize onset parameters:
-        #----------------------------------------
-        onset_flags = [onset_flags] if not isinstance(onset_flags, (list, np.ndarray)) else onset_flags
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Add results data frames to running data set:
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            if(save_partial_results):
+                results_df_master = results_df_master.append(model_obj.get_results_dataframe(), ignore_index=True) if results_df_master is not None else model_obj.get_results_dataframe()
+                if(paramSetDict['TRACK_CASE_INFO']):
+                    caselog_df = model_obj.get_case_log_dataframe()
+                    # Add columns with the given metadata values (including rep number)
+                    for key, val in metadata.items():
+                        caselog_df[key] = val if not (isinstance(val, (list, np.ndarray)) and len(val) == 0) else None
+                    caselog_df_master = caselog_df_master.append(caselog_df, ignore_index=True) if caselog_df_master is not None else caselog_df
+                # Save results (so far) to file:
+                if(save_results):
+                    utils.save_dataframe(results_df_master, file_name=outdir+'/results'+('_'+run_label if run_label is not None else ''), file_extn=output_file_extn, columns=results_columns)
+                if(save_caselogs):
+                    utils.save_dataframe(caselog_df_master, file_name=outdir+'/caselogs'+('_'+run_label if run_label is not None else ''), file_extn=output_file_extn, columns=caselog_columns)
+            else:
+                results_dfs.append(model_obj.get_results_dataframe())
+                if(paramSetDict['TRACK_CASE_INFO']):
+                    caselog_df = model_obj.get_case_log_dataframe()
+                    # Add columns with the given metadata values (including rep number)
+                    for key, val in metadata.items():
+                        caselog_df[key] = val if not (isinstance(val, (list, np.ndarray)) and len(val) == 0) else None
+                    caselog_dfs.append(caselog_df)
 
-        flag_onset = {flag: [False]*model.pop_size for flag in onset_flags} # bools for tracking which onsets have triggered for each individual
-        
-        #----------------------------------------
-        # Initialize testing parameters:
-        #----------------------------------------
-        model.update_test_parameters(test_params, prevalence_flags=prevalence_flags)
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            if(return_model_objects):
+                try:
+                    model_objs[paramSetNum].append(model_obj)
+                except KeyError:
+                    model_objs[paramSetNum] = [model_obj]
 
-        test_type_onset              = test_type_onset if test_type_onset is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
-        test_type_traced             = test_type_traced if test_type_traced is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
-        test_type_deisolation        = test_type_deisolation if test_type_deisolation is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
-        test_type_proactive          = test_type_proactive if test_type_proactive is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
-        test_type_onset_groupmate    = test_type_onset_groupmate if test_type_onset_groupmate is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
-        test_type_positive_groupmate = test_type_positive_groupmate if test_type_positive_groupmate is not None else list(model.test_types)[0] if len(model.test_types)>0 else None
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Compile all param set and rep data into single dataframes:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if(not save_partial_results):
+        results_df_master = pd.concat(results_dfs)
+        caselog_df_master = pd.concat(caselog_dfs)
 
-        test_result_delay     = {test_type: test_result_delay for test_type in model.test_types} if not isinstance(test_result_delay, dict) else test_result_delay
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Save final results to file:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if(save_results):
+        utils.save_dataframe(results_df_master, file_name=outdir+'/results'+('_'+run_label if run_label is not None else ''), file_extn=output_file_extn, columns=results_columns)
+    if(save_caselogs):
+        utils.save_dataframe(caselog_df_master, file_name=outdir+'/caselogs'+('_'+run_label if run_label is not None else ''), file_extn=output_file_extn, columns=caselog_columns)
 
-        proactiveTestingTimes = [cadence_presets[individual_cadence] for individual_cadence in proactive_testing_cadence] if isinstance(proactive_testing_cadence, (list, np.ndarray)) else [cadence_presets[proactive_testing_cadence]]*model.pop_size
-        if(not proactive_testing_synchronize):
-            for i, individualCadence in enumerate(proactiveTestingTimes):
-                proactiveTestingTimes[i] = np.sort(np.fmod(individualCadence + np.random.choice(range(cadence_cycle_length)), cadence_cycle_length))
+    return results_df_master, caselog_df_master, model_objs, params
 
-        #----------------------------------------
-        # Initialize individual compliances:
-        #----------------------------------------
-        isolation_compliance_onset              = utils.param_as_bool_array(isolation_compliance_onset, n=model.pop_size)
-        isolation_compliance_onset_groupmate    = utils.param_as_bool_array(isolation_compliance_onset_groupmate, n=model.pop_size)
-        isolation_compliance_positive           = utils.param_as_bool_array(isolation_compliance_positive, n=model.pop_size)
-        isolation_compliance_positive_groupmate = utils.param_as_bool_array(isolation_compliance_positive_groupmate, n=model.pop_size)
-        isolation_compliance_traced             = utils.param_as_bool_array(isolation_compliance_traced, n=model.pop_size)
-        testing_compliance_proactive            = utils.param_as_bool_array(testing_compliance_proactive, n=model.pop_size)
-        testing_compliance_onset                = utils.param_as_bool_array(testing_compliance_onset, n=model.pop_size)
-        testing_compliance_onset_groupmate      = utils.param_as_bool_array(testing_compliance_onset_groupmate, n=model.pop_size)
-        testing_compliance_positive_groupmate   = utils.param_as_bool_array(testing_compliance_positive_groupmate, n=model.pop_size)
-        testing_compliance_traced               = utils.param_as_bool_array(testing_compliance_traced, n=model.pop_size)
-        testing_compliance_deisolation          = utils.param_as_bool_array(testing_compliance_deisolation, n=model.pop_size)
-        tracing_compliance                      = utils.param_as_bool_array(tracing_compliance, n=model.pop_size)
-        # Store compliances as node attributes in the model object (e.g., for case logging purposes)
-        model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='isolation_compliance_onset', attribute_value=isolation_compliance_onset)
-        model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='isolation_compliance_onset_groupmate', attribute_value=isolation_compliance_onset_groupmate)
-        model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='isolation_compliance_positive', attribute_value=isolation_compliance_positive)
-        model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='isolation_compliance_positive_groupmate', attribute_value=isolation_compliance_positive_groupmate)
-        model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='isolation_compliance_traced', attribute_value=isolation_compliance_traced)
-        model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='testing_compliance_proactive', attribute_value=testing_compliance_proactive)
-        model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='testing_compliance_onset', attribute_value=testing_compliance_onset)
-        model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='testing_compliance_onset_groupmate', attribute_value=testing_compliance_onset_groupmate)
-        model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='testing_compliance_positive_groupmate', attribute_value=testing_compliance_positive_groupmate)
-        model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='testing_compliance_traced', attribute_value=testing_compliance_traced)
-        model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='testing_compliance_deisolation', attribute_value=testing_compliance_deisolation)
-        model.set_node_attribute(node=list(range(model.pop_size)), attribute_name='tracing_compliance', attribute_value=tracing_compliance)
 
-        #----------------------------------------
-        # Initialize intervention exclusion criteria:
-        #----------------------------------------
-        isolation_exclude_afterNumTests        = np.inf if isolation_exclude_afterNumTests is None else isolation_exclude_afterNumTests
-        isolation_exclude_afterNumVaccineDoses = np.inf if isolation_exclude_afterNumVaccineDoses is None else isolation_exclude_afterNumVaccineDoses
-        testing_exclude_afterNumTests          = np.inf if testing_exclude_afterNumTests is None else testing_exclude_afterNumTests
-        testing_exclude_afterNumVaccineDoses   = np.inf if testing_exclude_afterNumVaccineDoses is None else testing_exclude_afterNumVaccineDoses
-        testing_exclude_compartments           = [model.stateID[c] for c in testing_exclude_compartments]
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-        #----------------------------------------
-        # Initialize intervention queues:
-        #----------------------------------------
-        isolationQueue_onset                    = [set() for i in range(int(isolation_delay_onset/cadence_dt) + (1 if np.fmod(isolation_delay_onset, cadence_dt)>0 else 0))]
-        isolationQueue_onset_groupmate          = [set() for i in range(int(isolation_delay_onset_groupmate/cadence_dt) + (1 if np.fmod(isolation_delay_onset_groupmate, cadence_dt)>0 else 0))]
-        isolationQueue_positive                 = [set() for i in range(int(isolation_delay_positive/cadence_dt) + (1 if np.fmod(isolation_delay_positive, cadence_dt)>0 else 0))]
-        isolationQueue_positive_groupmate       = [set() for i in range(int(isolation_delay_positive_groupmate/cadence_dt) + (1 if np.fmod(isolation_delay_positive_groupmate, cadence_dt)>0 else 0))]
-        isolationQueue_traced                   = [set() for i in range(int(isolation_delay_traced/cadence_dt) + (1 if np.fmod(isolation_delay_traced, cadence_dt)>0 else 0))]
-        testingQueue_onset                      = [set() for i in range(int(testing_delay_onset/cadence_dt) + (1 if np.fmod(testing_delay_onset, cadence_dt)>0 else 0))]
-        testingQueue_onset_groupmate            = [set() for i in range(int(testing_delay_onset_groupmate/cadence_dt) + (1 if np.fmod(testing_delay_onset_groupmate, cadence_dt)>0 else 0))]
-        testingQueue_positive_groupmate         = [set() for i in range(max(1, (int(testing_delay_positive_groupmate/cadence_dt) + (1 if np.fmod(testing_delay_positive_groupmate, cadence_dt)>0 else 0))))]
-        testingQueue_traced                     = [set() for i in range(max(1, (int(testing_delay_traced/cadence_dt) + (1 if np.fmod(testing_delay_traced, cadence_dt)>0 else 0))))]
-        testingQueue_deisolation                = [set() for i in range(max(1, (int(testing_delay_deisolation/cadence_dt) + (1 if np.fmod(testing_delay_deisolation, cadence_dt)>0 else 0))))]
-        testingQueue_proactive                  = [set() for i in range(int(testing_delay_proactive/cadence_dt) + (1 if np.fmod(testing_delay_proactive, cadence_dt)>0 else 0))]
-        tracingQueue                            = [set() for i in range(int(tracing_delay/cadence_dt) + (1 if np.fmod(tracing_delay, cadence_dt)>0 else 0))]
+def generate_SARSCoV2_interventions_model(parameters=None):
 
-        positiveResultQueue                     = {test_type: [set() for i in range(int(test_result_delay[test_type]/cadence_dt) + (1 if np.fmod(test_result_delay[test_type], cadence_dt)>0 else 0))]
-                                                    for test_type in model.test_types}
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load in model and scenario parameter specifications:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load SEIRS+ default parameters for this scenario:
+    params = utils.load_config('scenario_SARSCoV2.json')
+    # Update parameters with any user provided values:
+    if(parameters is not None):
+        params.update(parameters)
 
-        #----------------------------------------
-        # Initialize intervention stats:
-        #----------------------------------------
-        totalNumTested_proactive              = 0
-        totalNumTested_onset                  = 0
-        totalNumTested_onset_groupmate        = 0
-        totalNumTested_positive_groupmate     = 0
-        totalNumTested_traced                 = 0
-        totalNumTested_deisolation            = 0
-        totalNumTested                        = 0
-        totalNumPositives_proactive           = 0
-        totalNumPositives_onset               = 0
-        totalNumPositives_onset_groupmate     = 0
-        totalNumPositives_positive_groupmate  = 0
-        totalNumPositives_traced              = 0
-        totalNumPositives_deisolation         = 0
-        totalNumPositives                     = 0
-        totalNumTruePositives                 = 0
-        totalNumFalsePositives                = 0
-        totalNumTrueNegatives                 = 0
-        totalNumFalseNegatives                = 0
-        totalNumIsolations_onset              = 0
-        totalNumIsolations_onset_groupmate    = 0
-        totalNumIsolations_positive           = 0
-        totalNumIsolations_positive_groupmate = 0
-        totalNumIsolations_traced             = 0
-        totalNumIsolations                    = 0
-        totalNumDeisolations                  = 0
-        totalNumIntroductions                 = 0
-        peakNumIsolated                       = 0
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Generate contact networks:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    MEAN_DEGREE = 10
+    MEAN_CLUSTER_SIZE = 10
+    CLUSTER_INTERCONNECTEDNESS = 0.25
+    network, network_info = generate_workplace_contact_network(
+                                N=params['N'],
+                                num_cohorts=1,
+                                num_nodes_per_cohort=params['N'],
+                                num_teams_per_cohort=int(params['N'] / MEAN_CLUSTER_SIZE),
+                                mean_intracohort_degree=MEAN_DEGREE,
+                                farz_params={
+                                    "beta": (1 - CLUSTER_INTERCONNECTEDNESS),
+                                    "alpha": 5.0,
+                                    "gamma": 5.0,
+                                    "r": 1,
+                                    "q": 0.0,
+                                    "phi": 50,
+                                    "b": 0,
+                                    "epsilon": 1e-6,
+                                    "directed": False,
+                                    "weighted": False,
+                                },
+                            )
+    networks = {"workplace": network}
 
-        #----------------------------------------
-        # Initialize other metadata:
-        #----------------------------------------
-        individual_testing_times = [ [] for i in range(model.pop_size) ]
-        individual_tracing_times = [ [] for i in range(model.pop_size) ]
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Instantiate the model:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    model = SARSCoV2NetworkModel(   networks                                 = networks, 
+                                    R0_mean                                  = params['R0_MEAN'],
+                                    R0_cv                                    = params['R0_CV'],
+                                    relative_transmissibility_presymptomatic = params['RELATIVE_TRANSMISSIBILITY_PRESYMPTOMATIC'], 
+                                    relative_transmissibility_asymptomatic   = params['RELATIVE_TRANSMISSIBILITY_ASYMPTOMATIC'], 
+                                    relative_susceptibility_priorexposure    = params['RELATIVE_SUSCEPTIBILITY_PRIOREXPOSURE'],    
+                                    relative_susceptibility_reinfection      = params['RELATIVE_SUSCEPTIBILITY_REINFECTION'],
+                                    latent_period                            = utils.gamma_dist(mean=params['LATENT_PERIOD_MEAN'], coeffvar=params['LATENT_PERIOD_CV'], N=params['N']),
+                                    presymptomatic_period                    = utils.gamma_dist(mean=params['PRESYMPTOMATIC_PERIOD_MEAN'], coeffvar=params['PRESYMPTOMATIC_PERIOD_CV'], N=params['N']),
+                                    symptomatic_period                       = utils.gamma_dist(mean=params['SYMPTOMATIC_PERIOD_MEAN'], coeffvar=params['SYMPTOMATIC_PERIOD_CV'], N=params['N']),
+                                    pct_asymptomatic                         = params['PCT_ASYMPTOMATIC'],
+                                    mixedness                                = params['MIXEDNESS'],
+                                    openness                                 = params['OPENNESS'],
+                                    track_case_info                          = params['TRACK_CASE_INFO'] )
 
-        #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        # Run the simulation loop:
-        #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-        running     = True
-        while running: 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Specify other model configurations:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Tests:
+    model.update_test_parameters(utils.load_config(params['TEST_PARAMS_CFG']))
 
-            current_cadence_time = ((model.t + init_cadence_offset) - np.fmod((model.t + init_cadence_offset), cadence_dt)) % (cadence_cycle_length - np.fmod(cadence_cycle_length, cadence_dt))
-            if(current_cadence_time != last_cadence_time):
+    # Vaccines:
+    model.add_vaccine(series='covid-vaccine', name='booster', 
+                        susc_effectiveness=params['VACCINE_EFFECTIVENESS_SUSCEPTIBILITY'], 
+                        transm_effectiveness=params['VACCINE_EFFECTIVENESS_TRANSMISSIBILITY'])
 
-                last_cadence_time = current_cadence_time
+    # Set different asymptomatic rates for vaccinated individuals:
+    pct_asymptomatic_vaccinated = utils.param_as_array(params['PCT_ASYMPTOMATIC_VACCINATED'], (1, params['N']))                                
+    model.set_transition_probability('Pv', {'Iv': 1 - pct_asymptomatic_vaccinated, 'Av': pct_asymptomatic_vaccinated})
 
-                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                # Introduce exogenous cases randomly:
-                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                numNewExposures   = np.random.poisson(lam=case_introduction_rate*cadence_dt)
-                if(numNewExposures > 0):
-                    introductionNodes = model.introduce_random_exposures(numNewExposures, compartment='all', exposed_to='any')
-                    if(len(introductionNodes) > 0):
-                        print("[NEW INTRODUCTION @ t = %.2f (%d exposed)]" % (model.t, len(introductionNodes)))
-                    totalNumIntroductions += len(introductionNodes)
+    # Particular assumption about handling susceptibility to reinfection for individuals with prior infection AND vaccination for this particular analysis:
+    model.set_susceptibility(['Rv'],  to=['P', 'I', 'A', 'Pv', 'Iv', 'Av'], susceptibility=min(params['RELATIVE_SUSCEPTIBILITY_REINFECTION'],   1-params['VACCINE_EFFECTIVENESS_SUSCEPTIBILITY']))
+    model.set_susceptibility(['Rpv'], to=['P', 'I', 'A', 'Pv', 'Iv', 'Av'], susceptibility=min(params['RELATIVE_SUSCEPTIBILITY_PRIOREXPOSURE'], 1-params['VACCINE_EFFECTIVENESS_SUSCEPTIBILITY']))
 
-                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                # Update network activities:
-                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                if(network_active_cadences is not None):
-                    for network, active_cadence in network_active_cadences.items():
-                        activeIndividuals   = np.argwhere( np.array([current_cadence_time in individual_times for individual_times in networkActiveTimes[network]]) )
-                        inactiveIndividuals = np.argwhere( np.array([current_cadence_time not in individual_times for individual_times in networkActiveTimes[network]]) )
-                        model.set_network_activity(network, node=activeIndividuals, active=True)
-                        model.set_network_activity(network, node=inactiveIndividuals, active=False)
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Set up the initial state:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Initialize a specified percentage of individuals to a prior exposure (recovered) state:
+    model.set_initial_prevalence('Rp', params['INIT_PCT_PRIOR_EXPOSURE'])
 
-                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Special version of vaccination (booster) pool for omicron workplace webapp,
+    # Restricting booster vaccination to Rp individuals until booster uptake exceeds Rp prevalence
+    model.vaccinate(node=(np.random.choice(model.get_individuals_by_compartment('Rp'), size=int(params['VACCINE_UPTAKE']*params['N']), replace=False)
+                            if params['INIT_PCT_PRIOR_EXPOSURE'] >= params['VACCINE_UPTAKE']
+                            else np.random.choice(params['N'], size=int(params['VACCINE_UPTAKE']*params['N']), replace=False)), 
+                    vaccine_series='covid-vaccine')
 
-                currentNumInfected = model.get_count_by_flag(prevalence_flags)
-                currentPrevalence  = currentNumInfected/model.N[model.tidx]
-                currentNumIsolated = np.count_nonzero(model.isolation)
+    # Administer initial masking:
+    model.mask(node=np.random.choice(range(params['N']), size=int(params['MASK_UPTAKE']*params['N']), replace=False), 
+                susc_effectiveness=params['MASK_EFFECTIVENESS_SUSCEPTIBILITY'], transm_effectiveness=params['MASK_EFFECTIVENESS_TRANSMISSIBILITY'])
 
-                if(currentPrevalence >= intervention_start_prevalence and not interventionOn):
-                    interventionOn        = True
-                    interventionStartTime = model.t
-                
-                if(interventionOn):
+    # Add a 'prior_exposure' flag to each individual with a prior infection:
+    # (this flag is on the Rp and Rpv compartments, but adding to individuals
+    #  so they will retain this flag after leaving these compartments)
+    for i in model.get_individuals_by_compartment(['Rp', 'Rpv']): 
+        model.add_individual_flag(node=i, flag='prior_exposure')
 
-                    print("[SCENARIO @ t = %.2f (t_cadence ~%.2f) :: Currently %d infected (%.2f%%), %d isolated]" % (model.t, current_cadence_time, currentNumInfected, ((currentNumInfected)/model.N[model.tidx])*100, currentNumIsolated))
-                    print(" State counts: ", list(zip([model.get_compartment_by_state_id(sid) for sid in np.unique(model.X, return_counts=True)[0]], np.unique(model.X, return_counts=True)[-1])))
+    # Introduce a number of random exposures to meet the given init prevalence of removed recovereds:
+    model.introduce_random_exposures(int(params['INIT_PCT_REMOVED']*params['N']), post_exposure_state='R')
 
-                    isolationSet_onset              = set()
-                    isolationSet_onset_groupmate    = set()
-                    isolationSet_positive           = set()
-                    isolationSet_positive_groupmate = set()
-                    isolationSet_traced             = set()
-                    
-                    testingSet_onset                = set()
-                    testingSet_onset_groupmate      = set()
-                    testingSet_positive_groupmate   = set()
-                    testingSet_traced               = set()
-                    testingSet_proactive            = set()
+    # Introduce a number of random exposures to meet the given init prevalence of active infections:
+    model.introduce_random_exposures(int(params['INIT_PREVALENCE']*params['N']))
 
-                    tracingSet                      = set()
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Return the constructed model:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    return model
 
-                    #---------------------------------------------
-                    # Exclude the following individuals from all isolation:
-                    # (these lists referenced in proactive isolation selection and isolation execution below)
-                    #---------------------------------------------
-                    isolation_excluded_byFlags        = (np.isin(range(model.pop_size), model.get_individuals_by_flag(isolation_exclude_flags))).ravel()
-                    isolation_excluded_byCompartments = (np.isin(model.X, isolation_exclude_compartments)).ravel()
-                    isolation_excluded_byIsolation    = (model.isolation == True).ravel() if isolation_exclude_isolated else np.array([False]*model.pop_size)
-                    isolation_excluded_byNumTests     = (model.num_tests >= isolation_exclude_afterNumTests).ravel()
-                    isolation_excluded_byVaccineDoses = (model.num_vaccine_doses >= isolation_exclude_afterNumVaccineDoses).ravel()
-                    
-                    isolation_excluded                = (isolation_excluded_byFlags | isolation_excluded_byCompartments | isolation_excluded_byIsolation | isolation_excluded_byNumTests | isolation_excluded_byVaccineDoses)
 
-                    isolation_nonExcludedIndividuals  = set(np.argwhere(isolation_excluded==False).ravel())
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-                    #---------------------------------------------
-                    # Exclude the following individuals from testing:
-                    # (these lists referenced in proactive testing selection and testing execution below)
-                    #---------------------------------------------
-                    testing_excluded_byFlags        = (np.isin(range(model.pop_size), model.get_individuals_by_flag(testing_exclude_flags))).ravel()
-                    testing_excluded_byCompartments = (np.isin(model.X, testing_exclude_compartments)).ravel()
-                    testing_excluded_byIsolation    = (model.isolation == True).ravel() if testing_exclude_isolated else np.array([False]*model.pop_size)
-                    testing_excluded_byNumTests     = (model.num_tests >= testing_exclude_afterNumTests).ravel()
-                    testing_excluded_byVaccineDoses = (model.num_vaccine_doses >= testing_exclude_afterNumVaccineDoses).ravel()
-                    
-                    testing_excluded                = (testing_excluded_byFlags | testing_excluded_byCompartments | testing_excluded_byIsolation | testing_excluded_byNumTests | testing_excluded_byVaccineDoses)
+def generate_SARSCoV2_community_model(parameters=None):
 
-                    testing_nonExcludedIndividuals  = set(np.argwhere(testing_excluded==False).ravel())
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load in model and scenario parameter specifications:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load SEIRS+ default parameters for this scenario:
+    params = utils.load_config('scenario_SARSCoV2_community.json')
+    # Update parameters with any user provided values:
+    if(parameters is not None):
+        params.update(parameters)
 
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    # Upon onset of flagged state (e.g., symptoms):
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    onsetFlaggedIndividuals = model.get_individuals_by_flag(onset_flags)
-                    if(any(isolation_compliance_onset) or any(testing_compliance_onset)
-                       or (intervention_groups is not None and (any(isolation_compliance_onset_groupmate) or any(testing_compliance_onset_groupmate)))):
-                        for isoflag in onset_flags:
-                            for flaggedIndividual in model.get_individuals_by_flag(isoflag):
-                                if(flag_onset[isoflag][flaggedIndividual]==False):
-                                    # This is the onset (first cadence interval) of this flag for this individual.
-                                    flag_onset[isoflag][flaggedIndividual] = True
-                                    #---------------------------------------------
-                                    # Isolate individual upon onset of this flag:
-                                    #---------------------------------------------
-                                    if(isolation_compliance_onset[flaggedIndividual]):
-                                        isolationSet_onset.add(flaggedIndividual)
-                                    #---------------------------------------------
-                                    # Test individual upon onset of this flag:
-                                    #---------------------------------------------
-                                    if(testing_compliance_onset[flaggedIndividual]):
-                                        testingSet_onset.add(flaggedIndividual)
-                                    #---------------------------------------------
-                                    # Isolate and/or Test groupmates of individuals with onset of this flag:
-                                    #---------------------------------------------
-                                    if(intervention_groups is not None and (any(isolation_compliance_onset_groupmate) or any(testing_compliance_onset_groupmate))):
-                                        groupmates = next((group for group in intervention_groups if flaggedIndividual in group), None)
-                                        if(groupmates is not None):
-                                            for groupmate in groupmates:
-                                                if(groupmate != flaggedIndividual):
-                                                    #----------------------
-                                                    # Isolate  groupmates:
-                                                    if(isolation_compliance_onset_groupmate[groupmate]):
-                                                        isolationSet_onset_groupmate.add(groupmate)                                                        
-                                                    #----------------------
-                                                    # Test  groupmates:
-                                                    if(testing_compliance_onset_groupmate[groupmate]):
-                                                        testingSet_onset_groupmate.add(groupmate)                                                        
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Generate contact networks:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    networks, clusters, households, age_groups, node_age_group_labels = generate_community_networks(params['N'])
 
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    # Upon being traced as contacts of positive cases:
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    if(len(tracingQueue) > 0):
-                        tracingCohort = tracingQueue.pop(0)
-                        if(len(tracingCohort) > 0 and (any(isolation_compliance_traced) or any(testing_compliance_traced))):
-                            for tracedIndividual in tracingCohort:
-                                individual_tracing_times[tracedIndividual].append(model.t)
-                                model.set_node_attribute(node=tracedIndividual, attribute_name='num_traces', attribute_value=len(individual_tracing_times[tracedIndividual]))
-                                model.set_node_attribute(node=tracedIndividual, attribute_name='time_of_last_trace', attribute_value=individual_tracing_times[tracedIndividual][-1])
-                                #---------------------------------------------
-                                # Isolate individual upon being traced:
-                                #---------------------------------------------
-                                if(isolation_compliance_traced[tracedIndividual]):
-                                    isolationSet_traced.add(tracedIndividual)
-                                #---------------------------------------------
-                                # Test individual upon being traced:
-                                #---------------------------------------------
-                                if(testing_compliance_traced[tracedIndividual]):
-                                    testingSet_traced.add(tracedIndividual)
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Apply social distancing to networks:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    for network_name, network_obj in networks.items():
+        if(network_name != 'household'):
+            apply_social_distancing(network_obj, contact_drop_prob=params['SOCIAL_DISTANCING_CONTACT_DROP_PROB'], distancing_compliance=params['SOCIAL_DISTANCING_COMPLIANCE'])
 
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    # Select individuals for proactive testing (on cadence days): 
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    if(any(current_cadence_time in individual_times for individual_times in proactiveTestingTimes)):
-                        if(any(testing_compliance_proactive)):
-                            #---------------------------------------------
-                            # Include in the proactive testing pool individuals that meet the following criteria:
-                            #---------------------------------------------
-                            proactiveTestingPool = np.argwhere( #Proactive testing scheduled at this time:
-                                                                (np.array([current_cadence_time in individual_times for individual_times in proactiveTestingTimes]))
-                                                                #Compliant with proactive testing:
-                                                                & (testing_compliance_proactive==True)
-                                                                # Not excluded by compartment, flags, num tests, or num vaccine doses:
-                                                                & (testing_excluded==False)
-                                                              ).ravel()
-                            #---------------------------------------------
-                            # Distribute proactive tests randomly
-                            #---------------------------------------------
-                            numRandomTests = min( int(model.pop_size * testing_capacity_proactive), int(len(proactiveTestingPool) * testing_accessibility_proactive))
-                            if(numRandomTests > 0):
-                                testingSet_proactive = set(np.random.choice(proactiveTestingPool, numRandomTests, replace=False))
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Set up heterogeneous and age-stratified param distributions:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Adjust relative individual R0s for each age group:
+    R0 = utils.gamma_dist(mean=params['R0_MEAN'], coeffvar=params['R0_CV'], N=params['N'])
+    R0 = [ R0[i] * (     params['RELATIVE_TRANSMISSIBILITY_AGE0TO4']   if age_group == 'age0-4' and params['RELATIVE_TRANSMISSIBILITY_AGE0TO4'] is not None
+                    else params['RELATIVE_TRANSMISSIBILITY_AGE5TO11']  if age_group == 'age5-11' and params['RELATIVE_TRANSMISSIBILITY_AGE5TO11'] is not None
+                    else params['RELATIVE_TRANSMISSIBILITY_AGE12TO17'] if age_group == 'age12-17' and params['RELATIVE_TRANSMISSIBILITY_AGE12TO17'] is not None
+                    else params['RELATIVE_TRANSMISSIBILITY_AGE18TO24'] if age_group == 'age18-24' and params['RELATIVE_TRANSMISSIBILITY_AGE18TO24'] is not None
+                    else params['RELATIVE_TRANSMISSIBILITY_AGE25TO64'] if age_group in ['age25-29', 'age30-34', 'age35-39', 'age40-44', 'age45-49', 'age50-54', 'age55-59', 'age60-64'] and params['RELATIVE_TRANSMISSIBILITY_AGE25TO64'] is not None
+                    else params['RELATIVE_TRANSMISSIBILITY_AGE65PLUS'] if age_group == 'age65+' and params['RELATIVE_TRANSMISSIBILITY_AGE65PLUS'] is not None
+                    else 1.0)
+                    for i, age_group in enumerate(node_age_group_labels) ]
 
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    # Execute testing:
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Adjust relative susceptibilities for each age group:
+    susceptibility = np.ones(params['N'])
+    susceptibility = [ susceptibility[i] * (     params['RELATIVE_SUSCEPTIBILITY_AGE0TO4']   if age_group == 'age0-4' and params['RELATIVE_SUSCEPTIBILITY_AGE0TO4'] is not None
+                                            else params['RELATIVE_SUSCEPTIBILITY_AGE5TO11']  if age_group == 'age5-11' and params['RELATIVE_SUSCEPTIBILITY_AGE5TO11'] is not None
+                                            else params['RELATIVE_SUSCEPTIBILITY_AGE12TO17'] if age_group == 'age12-17' and params['RELATIVE_SUSCEPTIBILITY_AGE12TO17'] is not None
+                                            else params['RELATIVE_SUSCEPTIBILITY_AGE18TO24'] if age_group == 'age18-24' and params['RELATIVE_SUSCEPTIBILITY_AGE18TO24'] is not None
+                                            else params['RELATIVE_SUSCEPTIBILITY_AGE25TO64'] if age_group in ['age25-29', 'age30-34', 'age35-39', 'age40-44', 'age45-49', 'age50-54', 'age55-59', 'age60-64'] and params['RELATIVE_SUSCEPTIBILITY_AGE25TO64'] is not None
+                                            else params['RELATIVE_SUSCEPTIBILITY_AGE65PLUS'] if age_group == 'age65+' and params['RELATIVE_SUSCEPTIBILITY_AGE65PLUS'] is not None
+                                            else 1.0)
+                                            for i, age_group in enumerate(node_age_group_labels) ]
 
-                    testingQueue_onset.append(testingSet_onset)
-                    testingQueue_onset_groupmate.append(testingSet_onset_groupmate)
-                    testingQueue_traced.append(testingSet_traced)
-                    testingQueue_proactive.append(testingSet_proactive)
+    # Assign asymptomatic fractions to each age group:
+    pct_asymptomatic = [     params['PCT_ASYMPTOMATIC_AGE0TO4']   if age_group == 'age0-4' and params['PCT_ASYMPTOMATIC_AGE0TO4'] is not None
+                        else params['PCT_ASYMPTOMATIC_AGE5TO11']  if age_group == 'age5-11' and params['PCT_ASYMPTOMATIC_AGE5TO11'] is not None
+                        else params['PCT_ASYMPTOMATIC_AGE12TO17'] if age_group == 'age12-17' and params['PCT_ASYMPTOMATIC_AGE12TO17'] is not None
+                        else params['PCT_ASYMPTOMATIC_AGE18TO24'] if age_group == 'age18-24' and params['PCT_ASYMPTOMATIC_AGE18TO24'] is not None
+                        else params['PCT_ASYMPTOMATIC_AGE25TO64'] if age_group in ['age25-29', 'age30-34', 'age35-39', 'age40-44', 'age45-49', 'age50-54', 'age55-59', 'age60-64'] and params['PCT_ASYMPTOMATIC_AGE25TO64'] is not None
+                        else params['PCT_ASYMPTOMATIC_AGE65PLUS'] if age_group == 'age65+' and params['PCT_ASYMPTOMATIC_AGE65PLUS'] is not None
+                        else params['PCT_ASYMPTOMATIC']
+                        for age_group in node_age_group_labels ]
 
-                    positiveResultSet   = {test_type: set() for test_type in model.test_types}
+    latent_period         = utils.gamma_dist(mean=params['LATENT_PERIOD_MEAN'], coeffvar=params['LATENT_PERIOD_CV'], N=params['N'])
+    presymptomatic_period = utils.gamma_dist(mean=params['PRESYMPTOMATIC_PERIOD_MEAN'], coeffvar=params['PRESYMPTOMATIC_PERIOD_CV'], N=params['N'])
+    symptomatic_period    = utils.gamma_dist(mean=params['SYMPTOMATIC_PERIOD_MEAN'], coeffvar=params['SYMPTOMATIC_PERIOD_CV'], N=params['N'])
 
-                    testedIndividuals   = set()
-                    positiveIndividuals = set()
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Instantiate the model:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    model = SARSCoV2NetworkModel(   networks                                 = networks, 
+                                    R0                                       = R0,
+                                    relative_transmissibility_presymptomatic = params['RELATIVE_TRANSMISSIBILITY_PRESYMPTOMATIC'], 
+                                    relative_transmissibility_asymptomatic   = params['RELATIVE_TRANSMISSIBILITY_ASYMPTOMATIC'], 
+                                    susceptibility                           = susceptibility,
+                                    relative_susceptibility_priorexposure    = params['RELATIVE_SUSCEPTIBILITY_PRIOREXPOSURE'],    
+                                    relative_susceptibility_reinfection      = params['RELATIVE_SUSCEPTIBILITY_REINFECTION'],
+                                    latent_period                            = latent_period,
+                                    presymptomatic_period                    = presymptomatic_period,
+                                    symptomatic_period                       = symptomatic_period,
+                                    pct_asymptomatic                         = pct_asymptomatic,
+                                    mixedness                                = params['MIXEDNESS'],
+                                    openness                                 = params['OPENNESS'],
+                                    track_case_info                          = params['TRACK_CASE_INFO'] )
 
-                    #---------------------------------------------
-                    # Administer onset tests:
-                    #---------------------------------------------
-                    numTested_onset   = 0
-                    numPositive_onset = 0
-                    testingCohort_onset = (testingQueue_onset.pop(0) & testing_nonExcludedIndividuals)
-                    for testIndividual in testingCohort_onset:
-                        if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
-                            break
-                        if(testIndividual not in testedIndividuals):
-                            testResult, testValidity = model.test(testIndividual, test_type_onset)
-                            numTested_onset += 1
-                            testedIndividuals.add(testIndividual)
-                            individual_testing_times[testIndividual].append(model.t)
-                            model.set_node_attribute(node=testIndividual, attribute_name='num_tests', attribute_value=len(individual_testing_times[testIndividual]))
-                            model.set_node_attribute(node=testIndividual, attribute_name='time_of_last_test', attribute_value=individual_testing_times[testIndividual][-1])
-                            model.set_node_attribute(node=testIndividual, attribute_name='result_of_last_test', attribute_value=testResult)
-                            model.set_node_attribute(node=testIndividual, attribute_name='validity_of_last_test', attribute_value=testValidity)
-                            if(testResult == True):
-                                positiveIndividuals.add(testIndividual)
-                                positiveResultSet[test_type_onset].add(testIndividual)
-                                numPositive_onset += 1
-                            if(testResult==True and testValidity==True):     totalNumTruePositives += 1
-                            elif(testResult==True and testValidity==False):  totalNumFalsePositives += 1
-                            elif(testResult==False and testValidity==True):  totalNumTrueNegatives += 1
-                            elif(testResult==False and testValidity==False): totalNumFalseNegatives += 1
-                    #---------------------------------------------
-                    # Administer onset groupmate tests:
-                    #---------------------------------------------
-                    numTested_onset_groupmate   = 0
-                    numPositive_onset_groupmate = 0
-                    testingCohort_onset_groupmate = (testingQueue_onset_groupmate.pop(0) & testing_nonExcludedIndividuals)
-                    for testIndividual in testingCohort_onset_groupmate:
-                        if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
-                            break
-                        if(testIndividual not in testedIndividuals):
-                            testResult, testValidity = model.test(testIndividual, test_type_onset_groupmate)
-                            numTested_onset_groupmate += 1
-                            testedIndividuals.add(testIndividual)
-                            individual_testing_times[testIndividual].append(model.t)
-                            model.set_node_attribute(node=testIndividual, attribute_name='num_tests', attribute_value=len(individual_testing_times[testIndividual]))
-                            model.set_node_attribute(node=testIndividual, attribute_name='time_of_last_test', attribute_value=individual_testing_times[testIndividual][-1])
-                            model.set_node_attribute(node=testIndividual, attribute_name='result_of_last_test', attribute_value=testResult)
-                            model.set_node_attribute(node=testIndividual, attribute_name='validity_of_last_test', attribute_value=testValidity)
-                            if(testResult == True):
-                                positiveIndividuals.add(testIndividual)
-                                positiveResultSet[test_type_onset_groupmate].add(testIndividual)
-                                numPositive_onset_groupmate += 1
-                            if(testResult==True and testValidity==True):     totalNumTruePositives += 1
-                            elif(testResult==True and testValidity==False):  totalNumFalsePositives += 1
-                            elif(testResult==False and testValidity==True):  totalNumTrueNegatives += 1
-                            elif(testResult==False and testValidity==False): totalNumFalseNegatives += 1
-                    #---------------------------------------------
-                    # Administer positive groupmate tests:
-                    #---------------------------------------------
-                    numTested_positive_groupmate   = 0
-                    numPositive_positive_groupmate = 0
-                    testingCohort_positive_groupmate = (testingQueue_positive_groupmate.pop(0) & testing_nonExcludedIndividuals)
-                    for testIndividual in testingCohort_positive_groupmate:
-                        if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
-                            break
-                        if(testIndividual not in testedIndividuals):
-                            testResult, testValidity = model.test(testIndividual, test_type_positive_groupmate)
-                            numTested_positive_groupmate += 1
-                            testedIndividuals.add(testIndividual)
-                            individual_testing_times[testIndividual].append(model.t)
-                            model.set_node_attribute(node=testIndividual, attribute_name='num_tests', attribute_value=len(individual_testing_times[testIndividual]))
-                            model.set_node_attribute(node=testIndividual, attribute_name='time_of_last_test', attribute_value=individual_testing_times[testIndividual][-1])
-                            model.set_node_attribute(node=testIndividual, attribute_name='result_of_last_test', attribute_value=testResult)
-                            model.set_node_attribute(node=testIndividual, attribute_name='validity_of_last_test', attribute_value=testValidity)
-                            if(testResult == True):
-                                positiveIndividuals.add(testIndividual)
-                                positiveResultSet[test_type_positive_groupmate].add(testIndividual)
-                                numPositive_positive_groupmate += 1
-                            if(testResult==True and testValidity==True):     totalNumTruePositives += 1
-                            elif(testResult==True and testValidity==False):  totalNumFalsePositives += 1
-                            elif(testResult==False and testValidity==True):  totalNumTrueNegatives += 1
-                            elif(testResult==False and testValidity==False): totalNumFalseNegatives += 1
-                    #---------------------------------------------
-                    # Administer tracing tests:
-                    #---------------------------------------------
-                    numTested_traced   = 0
-                    numPositive_traced = 0
-                    if(len(testingQueue_traced) > 0):
-                        testingCohort_traced = (testingQueue_traced.pop(0) & testing_nonExcludedIndividuals)
-                        for testIndividual in testingCohort_traced:
-                            if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
-                                break
-                            if(testIndividual not in testedIndividuals):
-                                testResult, testValidity = model.test(testIndividual, test_type_traced)
-                                numTested_traced += 1
-                                testedIndividuals.add(testIndividual)
-                                individual_testing_times[testIndividual].append(model.t)
-                                model.set_node_attribute(node=testIndividual, attribute_name='num_tests', attribute_value=len(individual_testing_times[testIndividual]))
-                                model.set_node_attribute(node=testIndividual, attribute_name='time_of_last_test', attribute_value=individual_testing_times[testIndividual][-1])
-                                model.set_node_attribute(node=testIndividual, attribute_name='result_of_last_test', attribute_value=testResult)
-                                model.set_node_attribute(node=testIndividual, attribute_name='validity_of_last_test', attribute_value=testValidity)
-                                if(testResult == True):
-                                    positiveIndividuals.add(testIndividual)
-                                    positiveResultSet[test_type_traced].add(testIndividual)
-                                    numPositive_traced += 1
-                                if(testResult==True and testValidity==True):     totalNumTruePositives += 1
-                                elif(testResult==True and testValidity==False):  totalNumFalsePositives += 1
-                                elif(testResult==False and testValidity==True):  totalNumTrueNegatives += 1
-                                elif(testResult==False and testValidity==False): totalNumFalseNegatives += 1
-                    #---------------------------------------------
-                    # Administer proactive tests:
-                    #---------------------------------------------
-                    numTested_proactive   = 0
-                    numPositive_proactive = 0
-                    testingCohort_proactive = (testingQueue_proactive.pop(0) & testing_nonExcludedIndividuals)
-                    for testIndividual in testingCohort_proactive:
-                        if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
-                            break
-                        if(testIndividual not in testedIndividuals):
-                            testResult, testValidity = model.test(testIndividual, test_type_proactive)
-                            numTested_proactive += 1
-                            testedIndividuals.add(testIndividual)
-                            individual_testing_times[testIndividual].append(model.t)
-                            model.set_node_attribute(node=testIndividual, attribute_name='num_tests', attribute_value=len(individual_testing_times[testIndividual]))
-                            model.set_node_attribute(node=testIndividual, attribute_name='time_of_last_test', attribute_value=individual_testing_times[testIndividual][-1])
-                            model.set_node_attribute(node=testIndividual, attribute_name='result_of_last_test', attribute_value=testResult)
-                            model.set_node_attribute(node=testIndividual, attribute_name='validity_of_last_test', attribute_value=testValidity)
-                            if(testResult == True):
-                                positiveIndividuals.add(testIndividual)
-                                positiveResultSet[test_type_proactive].add(testIndividual)
-                                numPositive_proactive += 1
-                            if(testResult==True and testValidity==True):     totalNumTruePositives += 1
-                            elif(testResult==True and testValidity==False):  totalNumFalsePositives += 1
-                            elif(testResult==False and testValidity==True):  totalNumTrueNegatives += 1
-                            elif(testResult==False and testValidity==False): totalNumFalseNegatives += 1
-                    #---------------------------------------------
-                    # Administer de-isolation checkpoint tests:
-                    #---------------------------------------------
-                    numTested_deisolation = 0
-                    numPositive_deisolation = 0
-                    numDeisolating = 0
-                    if(len(testingQueue_deisolation) > 0):
-                        testingCohort_deisolation = (testingQueue_deisolation.pop(0)) # no testing exclusions
-                        for testIndividual in testingCohort_deisolation:
-                            if(len(testedIndividuals) >= model.pop_size*testing_capacity_max):
-                                break
-                            testedIndividuals.add(testIndividual)
-                            numTested_deisolation += 1
-                            numNegativeResults = 0
-                            for test_rep in range(num_deisolation_tests):
-                                testResult, testValidity = model.test(testIndividual, test_type_deisolation)
-                                individual_testing_times[testIndividual].append(model.t)
-                                model.set_node_attribute(node=testIndividual, attribute_name='num_tests', attribute_value=len(individual_testing_times[testIndividual]))
-                                model.set_node_attribute(node=testIndividual, attribute_name='time_of_last_test', attribute_value=individual_testing_times[testIndividual][-1])
-                                model.set_node_attribute(node=testIndividual, attribute_name='result_of_last_test', attribute_value=testResult)
-                                model.set_node_attribute(node=testIndividual, attribute_name='validity_of_last_test', attribute_value=testValidity)
-                                if(testResult==False):
-                                    numNegativeResults += 1
-                                if(testResult==True and testValidity==True):     totalNumTruePositives += 1
-                                elif(testResult==True and testValidity==False):  totalNumFalsePositives += 1
-                                elif(testResult==False and testValidity==True):  totalNumTrueNegatives += 1
-                                elif(testResult==False and testValidity==False): totalNumFalseNegatives += 1
-                            if(numNegativeResults > 0 and numNegativeResults==num_deisolation_tests):
-                                # Set this individual to exit isolation:
-                                model.set_isolation(testIndividual, False)
-                                numDeisolating += 1
-                            elif(numNegativeResults < num_deisolation_tests):
-                                numPositive_deisolation += 1
-                            
-                    #---------------------------------------------
-                    
-                    for test_type in positiveResultQueue:
-                        positiveResultQueue[test_type].append(positiveResultSet[test_type])
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Specify other model configurations:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Set that individuals remain active in the 'household' network layer when in isolation:
+    model.set_network_activity('household', active_isolation=True)
 
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    # Handle positive test results:
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    #.............................................
-                    # Define how positive test results will be responded to:
-                    #.............................................
-                    def handle_positive_result(positive_individual):
-                        #.............................................
-                        # Isolate individual upon positive test result:
-                        #.............................................
-                        if(isolation_compliance_positive[positive_individual]):
-                            isolationSet_positive.add(positive_individual)
-                        #.............................................
-                        # Isolate and/or Test groupmates of individuals with positive test result:
-                        #.............................................
-                        if(intervention_groups is not None and (any(isolation_compliance_positive_groupmate) or any(testing_compliance_positive_groupmate))):
-                            groupmates = next((group for group in intervention_groups if positive_individual in group), None)
-                            # print("groupmates", groupmates)
-                            if(groupmates is not None):
-                                for groupmate in groupmates:
-                                    if(groupmate != positive_individual):
-                                        #----------------------
-                                        # Isolate groupmates:
-                                        if(isolation_compliance_positive_groupmate[groupmate]):
-                                            # print("isolating", groupmate, "as groupmate")
-                                            isolationSet_positive_groupmate.add(groupmate)
-                                        #----------------------
-                                        # Test groupmates:
-                                        if(testing_compliance_positive_groupmate[groupmate]):
-                                            testingSet_positive_groupmate.add(groupmate)
-                        #.............................................
-                        # Trace contacts of individuals with positive test result:
-                        #.............................................
-                        if(tracing_compliance[positive_individual] and (any(isolation_compliance_traced) or any(testing_compliance_traced))):
-                            contactsOfPositive = set()
-                            for network_name, network_data in model.networks.items():
-                                if(network_name not in tracing_exclude_networks):
-                                    contactsOfPositive.update( list(network_data['networkx'][positive_individual].keys()) )
-                            contactsOfPositive = list(contactsOfPositive)
-                            #.................
-                            numTracedContacts  = tracing_num_contacts if tracing_num_contacts is not None else int(len(contactsOfPositive)*tracing_pct_contacts)
-                            if(len(contactsOfPositive) > 0 and numTracedContacts > 0):
-                                tracedContacts = np.random.choice(contactsOfPositive, numTracedContacts, replace=False)
-                                tracingSet.update(tracedContacts)                        
-                    #.............................................
+    # Tests:
+    model.update_test_parameters(utils.load_config(params['TEST_PARAMS_CFG']))
 
-                    positiveResultCohort = {}
-                    for test_type in positiveResultQueue:
-                        positiveResultCohort[test_type] = positiveResultQueue[test_type].pop(0)
-                        for positiveIndividual in positiveResultCohort[test_type]:
-                            handle_positive_result(positiveIndividual)
+    # Vaccines:
+    model.add_vaccine(series='covid-vaccine', name='generic-dose', 
+                        susc_effectiveness=params['VACCINE_EFFECTIVENESS_SUSCEPTIBILITY'], 
+                        transm_effectiveness=params['VACCINE_EFFECTIVENESS_TRANSMISSIBILITY'])
 
-                    #---------------------------------------------
-                    # After all positive test results have been handled...
-                    #   Add groupmates and/or traced contacts of positives identified in this step to the queue:
-                    #   (testing traced contacts / positive groupmates must have at least 1 cadence_dt delay)
-                    testingQueue_positive_groupmate.append(testingSet_positive_groupmate)
-                    tracingQueue.append(tracingSet)
+    # Set different asymptomatic rates for vaccinated individuals:
+    pct_asymptomatic_vaccinated = [      params['PCT_ASYMPTOMATIC_VACCINATED_AGE0TO4']   if age_group == 'age0-4' and params['PCT_ASYMPTOMATIC_VACCINATED_AGE0TO4'] is not None
+                                    else params['PCT_ASYMPTOMATIC_VACCINATED_AGE5TO11']  if age_group == 'age5-11' and params['PCT_ASYMPTOMATIC_VACCINATED_AGE5TO11'] is not None
+                                    else params['PCT_ASYMPTOMATIC_VACCINATED_AGE12TO17'] if age_group == 'age12-17' and params['PCT_ASYMPTOMATIC_VACCINATED_AGE12TO17'] is not None
+                                    else params['PCT_ASYMPTOMATIC_VACCINATED_AGE18TO24'] if age_group == 'age18-24' and params['PCT_ASYMPTOMATIC_VACCINATED_AGE18TO24'] is not None
+                                    else params['PCT_ASYMPTOMATIC_VACCINATED_AGE25TO64'] if age_group in ['age25-29', 'age30-34', 'age35-39', 'age40-44', 'age45-49', 'age50-54', 'age55-59', 'age60-64'] and params['PCT_ASYMPTOMATIC_VACCINATED_AGE25TO64'] is not None
+                                    else params['PCT_ASYMPTOMATIC_VACCINATED_AGE65PLUS'] if age_group == 'age65+' and params['PCT_ASYMPTOMATIC_VACCINATED_AGE65PLUS'] is not None
+                                    else params['PCT_ASYMPTOMATIC_VACCINATED']
+                                    for age_group in node_age_group_labels ]
+    pct_asymptomatic_vaccinated = utils.param_as_array(pct_asymptomatic_vaccinated, (1, params['N']))                                
+    model.set_transition_probability('Pv', {'Iv': 1 - pct_asymptomatic_vaccinated, 'Av': pct_asymptomatic_vaccinated})
 
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    # Execute isolation:
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Explicit decision about handling susceptibility to reinfection for individuals with prior infection AND vaccination for this particular analysis:
+    model.set_susceptibility(['Rv'],  to=['P', 'I', 'A', 'Pv', 'Iv', 'Av'], susceptibility=min(params['RELATIVE_SUSCEPTIBILITY_REINFECTION'],   1-params['VACCINE_EFFECTIVENESS_SUSCEPTIBILITY']))
+    model.set_susceptibility(['Rpv'], to=['P', 'I', 'A', 'Pv', 'Iv', 'Av'], susceptibility=min(params['RELATIVE_SUSCEPTIBILITY_PRIOREXPOSURE'], 1-params['VACCINE_EFFECTIVENESS_SUSCEPTIBILITY']))
 
-                    isolationQueue_onset.append(isolationSet_onset)
-                    isolationQueue_onset_groupmate.append(isolationSet_onset_groupmate)
-                    isolationQueue_positive.append(isolationSet_positive)
-                    isolationQueue_positive_groupmate.append(isolationSet_positive_groupmate)
-                    isolationQueue_traced.append(isolationSet_traced)
+    # Add a node flag with each individual's age group label:
+    for i in range(params['N']): 
+        model.add_individual_flag(node=i, flag=node_age_group_labels[i])
 
-                    isolationCohort_onset              = (isolationQueue_onset.pop(0) & isolation_nonExcludedIndividuals)
-                    isolationCohort_onset_groupmate    = (isolationQueue_onset_groupmate.pop(0) & isolation_nonExcludedIndividuals)
-                    isolationCohort_positive           = (isolationQueue_positive.pop(0) & isolation_nonExcludedIndividuals)
-                    isolationCohort_positive_groupmate = (isolationQueue_positive_groupmate.pop(0) & isolation_nonExcludedIndividuals)
-                    isolationCohort_traced             = (isolationQueue_traced.pop(0) & isolation_nonExcludedIndividuals)
-                    isolationCohort = (isolationCohort_onset | isolationCohort_onset_groupmate | isolationCohort_positive | isolationCohort_positive_groupmate | isolationCohort_traced) 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Set up the initial state:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Initialize a specified percentage of individuals to a prior exposure (recovered) state:
+    model.set_initial_prevalence('Rp', params['INIT_PCT_PRIOR_EXPOSURE'])
 
-                    testingSet_deisolation = set()
+    # Administer initial vaccines:
+    for age_group in age_groups:
+        ageGroupIndividuals = model.get_individuals_by_flag('age'+age_group)
+        ageGroupVaccineUptake = (      params['VACCINE_UPTAKE_AGE0TO4']   if 'age'+age_group == 'age0-4' and params['VACCINE_UPTAKE_AGE0TO4'] is not None
+                                  else params['VACCINE_UPTAKE_AGE5TO11']  if 'age'+age_group == 'age5-11' and params['VACCINE_UPTAKE_AGE5TO11'] is not None
+                                  else params['VACCINE_UPTAKE_AGE12TO17'] if 'age'+age_group == 'age12-17' and params['VACCINE_UPTAKE_AGE12TO17'] is not None
+                                  else params['VACCINE_UPTAKE_AGE18TO24'] if 'age'+age_group == 'age18-24' and params['VACCINE_UPTAKE_AGE18TO24'] is not None
+                                  else params['VACCINE_UPTAKE_AGE25TO64'] if 'age'+age_group in ['age25-29', 'age30-34', 'age35-39', 'age40-44', 'age45-49', 'age50-54', 'age55-59', 'age60-64'] and params['VACCINE_UPTAKE_AGE25TO64'] is not None
+                                  else params['VACCINE_UPTAKE_AGE65PLUS'] if 'age'+age_group == 'age65+' and params['VACCINE_UPTAKE_AGE65PLUS'] is not None
+                                  else params['VACCINE_UPTAKE'] )
+        model.vaccinate(node=np.random.choice(ageGroupIndividuals, size=int(ageGroupVaccineUptake*len(ageGroupIndividuals)), replace=False), 
+                        vaccine_series='covid-vaccine')
 
-                    for isoIndividual in isolationCohort:
-                        # Determine the isolation time from this point:
-                        isoIndividual_isoPeriod = isolation_period # start with the nominal isolation period
-                        if(isolation_clock_mode=='onset'):
-                            if(isoIndividual in onsetFlaggedIndividuals):
-                                isoIndividual_isoPeriod -= model.state_timer[isoIndividual][0]
-                        elif(isolation_clock_mode=='test'):
-                            if(isoIndividual in isolationCohort_positive or isoIndividual in isolationCohort_positive_groupmate):
-                                isoIndividual_isoPeriod -= (model.t - individual_testing_times[isoIndividual][-1])                
-                            else:
-                                pass # no change to isoIndividual_isoPeriod
-                        elif(isolation_clock_mode=='result'):
-                            if(isoIndividual in isolationCohort_positive):
-                                isoIndividual_isoPeriod -= isolation_delay_positive
-                            elif(isoIndividual in isolationCohort_positive_groupmate):
-                                isoIndividual_isoPeriod -= isolation_delay_positive_groupmate
-                            else:
-                                pass # no change to isoIndividual_isoPeriod
-                        else:
-                            pass # no change to isoIndividual_isoPeriod
-                        # Set this individual to be in isolation:
-                        if(isoIndividual_isoPeriod is not None and isoIndividual_isoPeriod > 0):
-                            model.set_isolation(isoIndividual, True, isoIndividual_isoPeriod)                                          
-                        # If compliant, put this individual in a queue for de-isolation testing:
-                        if(testing_compliance_deisolation[isoIndividual]):
-                            testingSet_deisolation.add(isoIndividual)
+    # Administer initial masking:
+    for age_group in age_groups:
+        ageGroupIndividuals = model.get_individuals_by_flag('age'+age_group)
+        ageGroupMaskingUptake = (      params['MASK_UPTAKE_AGE0TO4']   if 'age'+age_group == 'age0-4' and params['MASK_UPTAKE_AGE0TO4'] is not None
+                                      else params['MASK_UPTAKE_AGE5TO11']  if 'age'+age_group == 'age5-11' and params['MASK_UPTAKE_AGE5TO11'] is not None
+                                      else params['MASK_UPTAKE_AGE12TO17'] if 'age'+age_group == 'age12-17' and params['MASK_UPTAKE_AGE12TO17'] is not None
+                                      else params['MASK_UPTAKE_AGE18TO24'] if 'age'+age_group == 'age18-24' and params['MASK_UPTAKE_AGE18TO24'] is not None
+                                      else params['MASK_UPTAKE_AGE25TO64'] if 'age'+age_group in ['age25-29', 'age30-34', 'age35-39', 'age40-44', 'age45-49', 'age50-54', 'age55-59', 'age60-64'] and params['MASK_UPTAKE_AGE25TO64'] is not None
+                                      else params['MASK_UPTAKE_AGE65PLUS'] if 'age'+age_group == 'age65+' and params['MASK_UPTAKE_AGE65PLUS'] is not None
+                                      else params['MASK_UPTAKE'] )
+        model.mask(node=np.random.choice(ageGroupIndividuals, size=int(ageGroupMaskingUptake*len(ageGroupIndividuals)), replace=False), 
+                    susc_effectiveness=params['MASK_EFFECTIVENESS_SUSCEPTIBILITY'], transm_effectiveness=params['MASK_EFFECTIVENESS_TRANSMISSIBILITY'])
 
-                    #---------------------------------------------
+    # Add a 'prior_exposure' flag to each individual with a prior infection:
+    # (this flag is on the Rp and Rpv compartments, but adding to individuals
+    #  so they will retain this flag after leaving these compartments)
+    for i in model.get_individuals_by_compartment(['Rp', 'Rpv']): 
+        model.add_individual_flag(node=i, flag='prior_exposure')
 
-                    testingQueue_deisolation.append(testingSet_deisolation)
+    # Introduce a number of random exposures to meet the given init prevalence of removed recovereds:
+    model.introduce_random_exposures(int(params['INIT_PCT_REMOVED']*params['N']), post_exposure_state='R')
 
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Introduce a number of random exposures to meet the given init prevalence of active infections:
+    model.introduce_random_exposures(int(params['INIT_PREVALENCE']*params['N']))
 
-                    totalNumTested_proactive              += numTested_proactive
-                    totalNumTested_onset                  += numTested_onset
-                    totalNumTested_onset_groupmate        += numTested_onset_groupmate
-                    totalNumTested_positive_groupmate     += numTested_positive_groupmate
-                    totalNumTested_traced                 += numTested_traced
-                    totalNumTested_deisolation            += numTested_deisolation
-                    totalNumTested                        += len(testedIndividuals)
-                    totalNumPositives_proactive           += numPositive_proactive
-                    totalNumPositives_onset               += numPositive_onset
-                    totalNumPositives_onset_groupmate     += numPositive_onset_groupmate
-                    totalNumPositives_positive_groupmate  += numPositive_positive_groupmate
-                    totalNumPositives_traced              += numPositive_traced
-                    totalNumPositives_deisolation         += numPositive_deisolation
-                    totalNumPositives                     += len(positiveIndividuals) 
-                    totalNumIsolations_onset              += len(isolationCohort_onset)
-                    totalNumIsolations_onset_groupmate    += len(isolationCohort_onset_groupmate)
-                    totalNumIsolations_positive           += len(isolationCohort_positive)
-                    totalNumIsolations_positive_groupmate += len(isolationCohort_positive_groupmate)
-                    totalNumIsolations_traced             += len(isolationCohort_traced)
-                    totalNumIsolations                    += len(isolationCohort)
-                    totalNumTested_deisolation            += numTested_deisolation*num_deisolation_tests
-                    totalNumDeisolations                  += numDeisolating
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Store intervention group info in the model object
+    # (janky, but done so it this info can be passed to 
+    # run_interventions_sim on a model by model basis 
+    # when using scenario wrappers) :
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    model.intervention_groups = [hh['indices'] for hh in households]
 
-                    peakNumIsolated                       = max(peakNumIsolated, np.count_nonzero(model.isolation))
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Return the constructed model:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    return model
 
-                    print("\t"+str(numTested_proactive)          +"\ttested proactively                       [+ "+str(numPositive_proactive)+" positive (%.2f %%) +]" % (numPositive_proactive/numTested_proactive*100 if numTested_proactive>0 else 0))
-                    print("\t"+str(numTested_onset)              +"\ttested "+str(testing_delay_onset)+" days after onset              [+ "+str(numPositive_onset)+" positive (%.2f %%) +]" % (numPositive_onset/numTested_onset*100 if numTested_onset>0 else 0))                    
-                    print("\t"+str(numTested_onset_groupmate)    +"\ttested "+str(testing_delay_onset_groupmate)+" days after groupmate onset    [+ "+str(numPositive_onset_groupmate)+" positive (%.2f %%) +]" % (numPositive_onset_groupmate/numTested_onset_groupmate*100 if numTested_onset_groupmate>0 else 0))
-                    print("\t"+str(numTested_positive_groupmate) +"\ttested "+str(testing_delay_positive_groupmate)+" days after groupmate positive [+ "+str(numPositive_positive_groupmate)+" positive (%.2f %%) +]" % (numPositive_positive_groupmate/numTested_positive_groupmate*100 if numTested_positive_groupmate>0 else 0))
-                    print("\t"+str(numTested_traced)             +"\ttested "+str(testing_delay_traced)+" days after being traced       [+ "+str(numPositive_traced)+" positive (%.2f %%) +]" % (numPositive_traced/numTested_traced*100 if numTested_traced>0 else 0))
-                    print("\t"+str(len(testedIndividuals))       +"\tTESTED TOTAL                             [+ "+str(len(positiveIndividuals))+" positive (%.2f %%) +]" % (len(positiveIndividuals)/len(testedIndividuals)*100 if len(testedIndividuals)>0 else 0))
 
-                    for test_type in positiveResultQueue:
-                        print("\t"+str(len(positiveResultCohort[test_type]))+"\tpositive result "+str(test_result_delay[test_type])+" days after "+test_type+" test")
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-                    print("\t"+str(len(isolationCohort_onset))              +"\tisolated "+str(isolation_delay_onset)+" days after onset")
-                    print("\t"+str(len(isolationCohort_onset_groupmate))    +"\tisolated "+str(isolation_delay_onset_groupmate)+" days after groupmate onset")
-                    print("\t"+str(len(isolationCohort_positive))           +"\tisolated "+str(isolation_delay_positive)+" days after positive result")
-                    print("\t"+str(len(isolationCohort_positive_groupmate)) +"\tisolated "+str(isolation_delay_positive_groupmate)+" days after groupmate positive result")
-                    print("\t"+str(len(isolationCohort_traced))             +"\tisolated "+str(isolation_delay_traced)+" days after traced")
-                    print("\t"+str(len(isolationCohort))                    +"\tISOLATED TOTAL")
+def generate_SARSCoV2_primary_school_model(parameters=None):
 
-                    print("\t"+str(numTested_deisolation)       +"\ttested for de-isolation "+str(testing_delay_deisolation)+" days after entering isolation [+ "+str(numPositive_deisolation)+" positive (%.2f %%) +]" % (numPositive_deisolation/numTested_deisolation*100 if numTested_deisolation>0 else 0))
-                    print("\t"+str(numDeisolating)              +"\tDE-ISOLATED with "+str(num_deisolation_tests)+" negative tests.")
-                    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load in model and scenario parameter specifications:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load SEIRS+ default parameters for this scenario:
+    params = utils.load_config('scenario_SARSCoV2_primaryschool.json')
+    # Update parameters with any user provided values:
+    if(parameters is not None):
+        params.update(parameters)
 
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    
-            running = model.run_iteration(max_dt=max_dt, default_dt=default_dt, tau_step=tau_step)
-            
-            if(terminate_at_zero_cases):
-                running = running and (currentNumInfected > 0) # or currentNumIsolated > 0) if false positives occur at non-negligible rate then this ends up running for a long time after 0 true cases
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Generate contact networks:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            # while loop
-            #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    NUM_GRADES                = 6
+    NUM_CLASSES_PER_GRADE     = 4
+    NUM_STUDENTS_PER_CLASS    = 20
+    NUM_STUDENTS              = NUM_GRADES*NUM_CLASSES_PER_GRADE*NUM_STUDENTS_PER_CLASS
+    NUM_TEACHERS              = NUM_GRADES*NUM_CLASSES_PER_GRADE*1
+    NUM_STAFF                 = NUM_TEACHERS
+    TEACHERSTAFF_DEGREE       = 8
+    NUM_TEACHERSTAFF_COMMS    = 1
+    NUM_STUDENT_BLOCKS        = 1
 
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Finalize model and simulation data:
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    networks, network_info = generate_primary_school_contact_network(num_grades                     = NUM_GRADES, 
+                                                                     num_classes_per_grade          = NUM_CLASSES_PER_GRADE, 
+                                                                     class_sizes                    = NUM_STUDENTS_PER_CLASS, 
+                                                                     num_student_blocks             = NUM_STUDENT_BLOCKS, 
+                                                                     block_by_household             = True, 
+                                                                     connect_students_in_households = True, 
+                                                                     num_staff                      = NUM_STAFF, 
+                                                                     num_teacher_staff_communities  = NUM_TEACHERSTAFF_COMMS, 
+                                                                     teacher_staff_degree           = TEACHERSTAFF_DEGREE)
 
-        model.finalize_data_series()    # this function populates the model.results dict with basic stats
+    networks = {'school': networks['school'], 'households': networks['households']}
 
-        #---------------------------------------------
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        model.results.update({ 
-            'sim_duration':                             model.t,
-            'intervention_start_time':                  interventionStartTime,
-            'intervention_end_time':                    model.t,
-            'init_cadence_offset':                      init_cadence_offset,
-            'total_num_introductions':                  totalNumIntroductions,
-            'total_num_tests_proactive':                totalNumTested_proactive,              
-            'total_num_tests_onset':                    totalNumTested_onset,                  
-            'total_num_tests_groupmate':                totalNumTested_onset_groupmate,        
-            'total_num_tests_positive_groupmate':       totalNumTested_positive_groupmate,     
-            'total_num_tests_traced':                   totalNumTested_traced,                 
-            'total_num_tests_deisolation':              totalNumTested_deisolation,                 
-            'total_num_tests':                          totalNumTested,                        
-            'total_num_positives_proactive':            totalNumPositives_proactive,          
-            'total_num_positives_onset':                totalNumPositives_onset,              
-            'total_num_positives_onset_groupmate':      totalNumPositives_onset_groupmate,    
-            'total_num_positives_positive_groupmate':   totalNumPositives_positive_groupmate, 
-            'total_num_positives_traced':               totalNumPositives_traced,             
-            'total_num_positives_deisolation':          totalNumPositives_deisolation,             
-            'total_num_positives':                      totalNumPositives,                    
-            'total_num_true_positives':                 totalNumTruePositives,                    
-            'total_num_false_positives':                totalNumFalsePositives,                    
-            'total_num_true_negatives':                 totalNumTrueNegatives,                    
-            'total_num_false_negatives':                totalNumFalseNegatives,                    
-            'total_num_isolations_onset':               totalNumIsolations_onset,             
-            'total_num_isolations_onset_groupmate':     totalNumIsolations_onset_groupmate,   
-            'total_num_isolations_positive':            totalNumIsolations_positive,          
-            'total_num_isolations_positive_groupmate':  totalNumIsolations_positive_groupmate,
-            'total_num_isolations_traced':              totalNumIsolations_traced,            
-            'total_num_isolations':                     totalNumIsolations,
-            'total_num_deisolations':                   totalNumDeisolations,
-            'peak_num_isolated':                        peakNumIsolated 
-            })
+    N = int(networks['school'].number_of_nodes())
 
-        #---------------------------------------------
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        return True
+    # import matplotlib.pyplot as plt
+    # node_colors = ['tab:green' if label=='teacher' else 'tab:orange' if label=='staff' else 'tab:blue' for label in network_info['node_labels']]
+    # networkx.draw(networks['school'], pos=networkx.spring_layout(networks['school'], weight='layout_weight'), node_size=20, node_color=node_colors, edge_color='lightgray', alpha=0.5)
+    # networkx.draw(networks['school-studentsonly'], pos=networkx.spring_layout(networks['school-studentsonly'], weight='layout_weight'), node_size=20, node_color=node_colors, edge_color='lightgray', alpha=0.5)
+    # networkx.draw(networks['school-teacherstaffonly'], pos=networkx.spring_layout(networks['school-teacherstaffonly'], weight='layout_weight'), node_size=20, node_color=node_colors, edge_color='lightgray', alpha=0.5)
+    # networkx.draw(networks['households'], pos=networkx.spring_layout(networks['households'], weight='layout_weight'), node_size=20, node_color=node_colors, edge_color='lightgray', alpha=0.5)
+    # plt.show()
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Set up heterogeneous and age-stratified param distributions:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # Adjust relative individual R0s for each age group:
+    R0 = utils.gamma_dist(mean=params['R0_MEAN'], coeffvar=params['R0_CV'], N=N)
+    R0 = [ R0[i] * (     params['RELATIVE_TRANSMISSIBILITY_STUDENT'] if label == 'student' and params['RELATIVE_TRANSMISSIBILITY_STUDENT'] is not None
+                    else params['RELATIVE_TRANSMISSIBILITY_ADULT']   if label in ['teacher', 'staff'] and params['RELATIVE_TRANSMISSIBILITY_ADULT'] is not None
+                    else 1.0)
+                    for i, label in enumerate(network_info['node_labels']) ]
+
+    # Adjust relative susceptibilities for each age group:
+    susceptibility = np.ones(N)
+    susceptibility = [ susceptibility[i] * (     params['RELATIVE_SUSCEPTIBILITY_STUDENT'] if label == 'student' and params['RELATIVE_SUSCEPTIBILITY_STUDENT'] is not None
+                                            else params['RELATIVE_SUSCEPTIBILITY_ADULT']   if label in ['teacher', 'staff'] and params['RELATIVE_SUSCEPTIBILITY_ADULT'] is not None
+                                            else 1.0)
+                                            for i, label in enumerate(network_info['node_labels']) ]
+
+    # Assign asymptomatic fractions to each age group:
+    pct_asymptomatic = [     params['PCT_ASYMPTOMATIC_STUDENT'] if label == 'student' and params['PCT_ASYMPTOMATIC_STUDENT'] is not None
+                        else params['PCT_ASYMPTOMATIC_ADULT']   if label in ['teacher', 'staff'] and params['PCT_ASYMPTOMATIC_ADULT'] is not None
+                        else params['PCT_ASYMPTOMATIC']
+                        for label in network_info['node_labels'] ]
+
+    latent_period         = utils.gamma_dist(mean=params['LATENT_PERIOD_MEAN'], coeffvar=params['LATENT_PERIOD_CV'], N=N)
+    presymptomatic_period = utils.gamma_dist(mean=params['PRESYMPTOMATIC_PERIOD_MEAN'], coeffvar=params['PRESYMPTOMATIC_PERIOD_CV'], N=N)
+    symptomatic_period    = utils.gamma_dist(mean=params['SYMPTOMATIC_PERIOD_MEAN'], coeffvar=params['SYMPTOMATIC_PERIOD_CV'], N=N)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Instantiate the model:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    model = SARSCoV2NetworkModel(   networks                                 = networks, 
+                                    R0                                       = R0,
+                                    susceptibility                           = susceptibility,
+                                    relative_transmissibility_presymptomatic = params['RELATIVE_TRANSMISSIBILITY_PRESYMPTOMATIC'], 
+                                    relative_transmissibility_asymptomatic   = params['RELATIVE_TRANSMISSIBILITY_ASYMPTOMATIC'], 
+                                    relative_susceptibility_priorexposure    = params['RELATIVE_SUSCEPTIBILITY_PRIOREXPOSURE'],    
+                                    relative_susceptibility_reinfection      = params['RELATIVE_SUSCEPTIBILITY_REMOVED'],
+                                    latent_period                            = latent_period,
+                                    presymptomatic_period                    = presymptomatic_period,
+                                    symptomatic_period                       = symptomatic_period,
+                                    pct_asymptomatic                         = pct_asymptomatic,
+                                    mixedness                                = params['MIXEDNESS'],
+                                    openness                                 = params['OPENNESS'],
+                                    track_case_info                          = params['TRACK_CASE_INFO'],
+                                    node_groups                              = {'students': network_info['studentIDs'], 'adults': network_info['teacherIDs']+network_info['staffIDs']} 
+                                )
+
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Specify other model configurations:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Set that individuals remain active in the 'households' network layer when in isolation:
+    model.set_network_activity('households', active_isolation=True)
+
+    # Tests:
+    model.update_test_parameters(utils.load_config(params['TEST_PARAMS_CFG']))
+
+    # Vaccines:
+    model.add_vaccine(series='covid-vaccine', name='booster', 
+                        susc_effectiveness=params['VACCINE_EFFECTIVENESS_SUSCEPTIBILITY'], 
+                        transm_effectiveness=params['VACCINE_EFFECTIVENESS_TRANSMISSIBILITY'])
+
+    # Set different asymptomatic rates for vaccinated individuals:
+    pct_asymptomatic_vaccinated = [      params['PCT_ASYMPTOMATIC_VACCINATED_STUDENT'] if label == 'student' and params['PCT_ASYMPTOMATIC_VACCINATED_STUDENT'] is not None
+                                    else params['PCT_ASYMPTOMATIC_VACCINATED_ADULT']   if label in ['teacher', 'staff'] and params['PCT_ASYMPTOMATIC_VACCINATED_ADULT'] is not None
+                                    else params['PCT_ASYMPTOMATIC_VACCINATED']
+                                    for label in network_info['node_labels'] ]
+    pct_asymptomatic_vaccinated = utils.param_as_array(pct_asymptomatic_vaccinated, (1, N))                                
+    model.set_transition_probability('Pv', {'Iv': 1 - pct_asymptomatic_vaccinated, 'Av': pct_asymptomatic_vaccinated})
+
+    # #*************************
+    # # Particular assumption about handling susceptibility to reinfection for individuals with prior infection AND vaccination for this particular analysis:
+    model.set_susceptibility(['Rv'],  to=['P', 'I', 'A', 'Pv', 'Iv', 'Av'], susceptibility=min(params['RELATIVE_SUSCEPTIBILITY_REMOVED'],       1-params['VACCINE_EFFECTIVENESS_SUSCEPTIBILITY']))
+    model.set_susceptibility(['Rpv'], to=['P', 'I', 'A', 'Pv', 'Iv', 'Av'], susceptibility=min(params['RELATIVE_SUSCEPTIBILITY_PRIOREXPOSURE'], 1-params['VACCINE_EFFECTIVENESS_SUSCEPTIBILITY']))
+
+    # #*************************
+    # # Enforce that individuals that seek a test upon onset of symptoms are different from the individuals that self-isolate upon sympotoms:
+    # isolation_compliance_onset    = utils.param_as_bool_array(params['ISOLATION_COMPLIANCE_ONSET'], n=model.pop_size, selection_mode='choice').ravel()
+    # testing_compliance_onset_inds = np.random.choice(np.argwhere(isolation_compliance_onset==False).ravel(), size=int(params['TESTING_COMPLIANCE_ONSET']*model.pop_size), replace=False)
+    # testing_compliance_onset      = np.array([True if i in testing_compliance_onset_inds else False for i in range(model.pop_size)], dtype=bool)
+
+    # Allow testing compliance rates to be differest between students and adults:
+    # testing_compliance_proactive_students = utils.param_as_bool_array(params['TESTING_COMPLIANCE_PROACTIVE_STUDENT'], n=len(network_info['studentIDs']), selection_mode='choice').ravel()
+    # testing_compliance_proactive_adults   = utils.param_as_bool_array(params['TESTING_COMPLIANCE_PROACTIVE_ADULT'], n=len(network_info['teacherIDs']+network_info['staffIDs']), selection_mode='choice').ravel()
+    # testing_compliance_proactive          = np.concatenate([testing_compliance_proactive_students, testing_compliance_proactive_adults])
+
+
+    # Add a node flag with each individual's age group label:
+    for i in range(N): 
+        model.add_individual_flag(node=i, flag=network_info['node_labels'][i])
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Set up the initial state:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # Introduce a different number of random prior non-omicron spike exposures for each age group:
+    # instead of model.set_initial_prevalence()
+    model.introduce_random_exposures(num=int(params['INIT_PCT_PRIOR_EXPOSURE_STUDENT']*len(network_info['studentIDs'])), node=network_info['studentIDs'], post_exposure_state='Rp')
+    model.introduce_random_exposures(num=int(params['INIT_PCT_PRIOR_EXPOSURE_ADULT']*len(network_info['teacherIDs']+network_info['staffIDs'])), node=network_info['teacherIDs']+network_info['staffIDs'], post_exposure_state='Rp')
+
+    # Administer initial vaccines:
+    for label in np.unique(network_info['node_labels']):
+        ageGroupIndividuals = model.get_individuals_by_flag(label)
+        ageGroupVaccineUptake = (     params['VACCINE_UPTAKE_STUDENT'] if label == 'student' and params['VACCINE_UPTAKE_STUDENT'] is not None
+                                 else params['VACCINE_UPTAKE_ADULT']   if label in ['teacher', 'staff'] and params['VACCINE_UPTAKE_ADULT'] is not None
+                                 else params['VACCINE_UPTAKE'] )
+        model.vaccinate(node=np.random.choice(ageGroupIndividuals, size=int(ageGroupVaccineUptake*len(ageGroupIndividuals)), replace=False), vaccine_series='covid-vaccine')
+
+    # Administer initial masking:
+    for label in np.unique(network_info['node_labels']):
+        ageGroupIndividuals = model.get_individuals_by_flag(label)
+        ageGroupMaskingUptake = (     params['MASK_UPTAKE_STUDENT'] if label == 'student' and params['MASK_UPTAKE_STUDENT'] is not None
+                                 else params['MASK_UPTAKE_ADULT']   if label in ['teacher', 'staff'] and params['MASK_UPTAKE_ADULT'] is not None
+                                 else params['MASK_UPTAKE'] )
+        model.mask(node=np.random.choice(ageGroupIndividuals, size=int(ageGroupMaskingUptake*len(ageGroupIndividuals)), replace=False), 
+                    susc_effectiveness=params['MASK_EFFECTIVENESS_SUSCEPTIBILITY'], transm_effectiveness=params['MASK_EFFECTIVENESS_TRANSMISSIBILITY'])
+
+    # Add a 'prior_exposure' flag to each individual with a prior infection:
+    # (this flag is on the Rp and Rpv compartments, but adding to individuals
+    #  so they will retain this flag after leaving these compartments)
+    for i in model.get_individuals_by_compartment(['Rp', 'Rpv']): 
+        model.add_individual_flag(node=i, flag='prior_exposure')
+
+    # Introduce a number of random exposures to meet the given init prevalence of removed recovereds:
+    model.introduce_random_exposures(int(params['INIT_PCT_REMOVED']*N), post_exposure_state='R')
+
+    # Introduce a number of random exposures to meet the given init prevalence of active infections:
+    model.introduce_random_exposures(int(params['INIT_PREVALENCE']*N))
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Return the constructed model:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    return model
+
+
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def generate_SARSCoV2_secondary_school_model(parameters=None):
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load in model and scenario parameter specifications:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load SEIRS+ default parameters for this scenario:
+    params = utils.load_config('scenario_SARSCoV2_secondaryschool.json')
+    # Update parameters with any user provided values:
+    if(parameters is not None):
+        params.update(parameters)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Generate contact networks:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    NUM_GRADES                      = 4
+    NUM_STUDENTS_PER_GRADE          = 500
+    NUM_STUDENTS                    = NUM_GRADES*NUM_STUDENTS_PER_GRADE
+    NUM_STUDENT_COMMS_PER_GRADE     = int(NUM_STUDENTS_PER_GRADE/10)
+    STUDENT_DEGREE                  = 16
+    STUDENT_PCT_CONTACTS_INTERGRADE = 0.20
+    NUM_STUDENT_BLOCKS              = 1
+    NUM_CLASSES_PER_STUDENT         = 6
+    NUM_TEACHERS                    = 175
+    NUM_STAFF                       = 75
+    TEACHERSTAFF_DEGREE             = 12
+    NUM_TEACHERSTAFF_COMMS          = 10
+
+    networks, network_info = generate_secondary_school_contact_network(num_grades=NUM_GRADES, num_students_per_grade=NUM_STUDENTS_PER_GRADE, num_communities_per_grade=NUM_STUDENT_COMMS_PER_GRADE,
+                                                                       student_mean_intragrade_degree=STUDENT_DEGREE, student_pct_contacts_intergrade=STUDENT_PCT_CONTACTS_INTERGRADE,
+                                                                       num_student_blocks=NUM_STUDENT_BLOCKS, block_by_household=True, connect_students_in_households=True, 
+                                                                       num_teachers=NUM_TEACHERS, num_staff=NUM_STAFF, num_teacher_staff_communities=NUM_TEACHERSTAFF_COMMS, teacher_staff_degree=TEACHERSTAFF_DEGREE,
+                                                                       num_classes_per_student=NUM_CLASSES_PER_STUDENT, classlevel_probs = [[0.8, 0.1, 0.05, 0.05], [0.1, 0.75, 0.1, 0.05], [0.05, 0.1, 0.75, 0.1], [0.05, 0.05, 0.1, 0.8]] )
+
+    networks = {'school': networks['school'], 'households': networks['households']}
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    N = int(networks['school'].number_of_nodes())
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # import matplotlib.pyplot as plt
+    # node_colors = ['tab:green' if label=='teacher' else 'tab:orange' if label=='staff' else 'tab:blue' for label in network_info['node_labels']]
+    # networkx.draw(networks['school'], pos=networkx.spring_layout(networks['school'], weight='layout_weight'), node_size=20, node_color=node_colors, edge_color='lightgray', alpha=0.5)
+    # networkx.draw(networks['school-studentsonly'], pos=networkx.spring_layout(networks['school-studentsonly'], weight='layout_weight'), node_size=20, node_color=node_colors, edge_color='lightgray', alpha=0.5)
+    # networkx.draw(networks['school-teacherstaffonly'], pos=networkx.spring_layout(networks['school-teacherstaffonly'], weight='layout_weight'), node_size=20, node_color=node_colors, edge_color='lightgray', alpha=0.5)
+    # networkx.draw(networks['households'], pos=networkx.spring_layout(networks['households'], weight='layout_weight'), node_size=20, node_color=node_colors, edge_color='lightgray', alpha=0.5)
+    # plt.show()
+    # exit()
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Set up heterogeneous and age-stratified param distributions:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # Adjust relative individual R0s for each age group:
+    R0 = utils.gamma_dist(mean=params['R0_MEAN'], coeffvar=params['R0_CV'], N=N)
+    R0 = [ R0[i] * (     params['RELATIVE_TRANSMISSIBILITY_STUDENT'] if label == 'student' and params['RELATIVE_TRANSMISSIBILITY_STUDENT'] is not None
+                    else params['RELATIVE_TRANSMISSIBILITY_ADULT']   if label in ['teacher', 'staff'] and params['RELATIVE_TRANSMISSIBILITY_ADULT'] is not None
+                    else 1.0)
+                    for i, label in enumerate(network_info['node_labels']) ]
+
+    # Adjust relative susceptibilities for each age group:
+    susceptibility = np.ones(N)
+    susceptibility = [ susceptibility[i] * (     params['RELATIVE_SUSCEPTIBILITY_STUDENT'] if label == 'student' and params['RELATIVE_SUSCEPTIBILITY_STUDENT'] is not None
+                                            else params['RELATIVE_SUSCEPTIBILITY_ADULT']   if label in ['teacher', 'staff'] and params['RELATIVE_SUSCEPTIBILITY_ADULT'] is not None
+                                            else 1.0)
+                                            for i, label in enumerate(network_info['node_labels']) ]
+
+    # Assign asymptomatic fractions to each age group:
+    pct_asymptomatic = [     params['PCT_ASYMPTOMATIC_STUDENT'] if label == 'student' and params['PCT_ASYMPTOMATIC_STUDENT'] is not None
+                        else params['PCT_ASYMPTOMATIC_ADULT']   if label in ['teacher', 'staff'] and params['PCT_ASYMPTOMATIC_ADULT'] is not None
+                        else params['PCT_ASYMPTOMATIC']
+                        for label in network_info['node_labels'] ]
+
+    latent_period         = utils.gamma_dist(mean=params['LATENT_PERIOD_MEAN'], coeffvar=params['LATENT_PERIOD_CV'], N=N)
+    presymptomatic_period = utils.gamma_dist(mean=params['PRESYMPTOMATIC_PERIOD_MEAN'], coeffvar=params['PRESYMPTOMATIC_PERIOD_CV'], N=N)
+    symptomatic_period    = utils.gamma_dist(mean=params['SYMPTOMATIC_PERIOD_MEAN'], coeffvar=params['SYMPTOMATIC_PERIOD_CV'], N=N)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Instantiate the model:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    model = SARSCoV2NetworkModel(   networks                                 = networks, 
+                                    R0                                       = R0,
+                                    susceptibility                           = susceptibility,
+                                    relative_transmissibility_presymptomatic = params['RELATIVE_TRANSMISSIBILITY_PRESYMPTOMATIC'], 
+                                    relative_transmissibility_asymptomatic   = params['RELATIVE_TRANSMISSIBILITY_ASYMPTOMATIC'], 
+                                    relative_susceptibility_priorexposure    = params['RELATIVE_SUSCEPTIBILITY_PRIOREXPOSURE'],    
+                                    relative_susceptibility_reinfection      = params['RELATIVE_SUSCEPTIBILITY_REMOVED'],
+                                    latent_period                            = latent_period,
+                                    presymptomatic_period                    = presymptomatic_period,
+                                    symptomatic_period                       = symptomatic_period,
+                                    pct_asymptomatic                         = pct_asymptomatic,
+                                    mixedness                                = params['MIXEDNESS'],
+                                    openness                                 = params['OPENNESS'],
+                                    track_case_info                          = params['TRACK_CASE_INFO'],
+                                    node_groups                              = {'students': network_info['studentIDs'], 'adults': network_info['teacherIDs']+network_info['staffIDs']} 
+                                )
+
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Specify other model configurations:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Set that individuals remain active in the 'households' network layer when in isolation:
+    model.set_network_activity('households', active_isolation=True)
+
+    # Tests:
+    model.update_test_parameters(utils.load_config(params['TEST_PARAMS_CFG']))
+
+    # Vaccines:
+    model.add_vaccine(series='covid-vaccine', name='booster', 
+                        susc_effectiveness=params['VACCINE_EFFECTIVENESS_SUSCEPTIBILITY'], 
+                        transm_effectiveness=params['VACCINE_EFFECTIVENESS_TRANSMISSIBILITY'])
+
+    # Set different asymptomatic rates for vaccinated individuals:
+    pct_asymptomatic_vaccinated = [      params['PCT_ASYMPTOMATIC_VACCINATED_STUDENT'] if label == 'student' and params['PCT_ASYMPTOMATIC_VACCINATED_STUDENT'] is not None
+                                    else params['PCT_ASYMPTOMATIC_VACCINATED_ADULT']   if label in ['teacher', 'staff'] and params['PCT_ASYMPTOMATIC_VACCINATED_ADULT'] is not None
+                                    else params['PCT_ASYMPTOMATIC_VACCINATED']
+                                    for label in network_info['node_labels'] ]
+    pct_asymptomatic_vaccinated = utils.param_as_array(pct_asymptomatic_vaccinated, (1, N))                                
+    model.set_transition_probability('Pv', {'Iv': 1 - pct_asymptomatic_vaccinated, 'Av': pct_asymptomatic_vaccinated})
+
+    #*************************
+    # Particular assumption about handling susceptibility to reinfection for individuals with prior infection AND vaccination for this particular analysis:
+    model.set_susceptibility(['Rv'],  to=['P', 'I', 'A', 'Pv', 'Iv', 'Av'], susceptibility=min(params['RELATIVE_SUSCEPTIBILITY_REMOVED'],   1-params['VACCINE_EFFECTIVENESS_SUSCEPTIBILITY']))
+    model.set_susceptibility(['Rpv'], to=['P', 'I', 'A', 'Pv', 'Iv', 'Av'], susceptibility=min(params['RELATIVE_SUSCEPTIBILITY_PRIOREXPOSURE'], 1-params['VACCINE_EFFECTIVENESS_SUSCEPTIBILITY']))
+
+    #*************************
+    # Enforce that individuals that seek a test upon onset of symptoms are different from the individuals that self-isolate upon sympotoms:
+    # isolation_compliance_onset    = utils.param_as_bool_array(params['ISOLATION_COMPLIANCE_ONSET'], n=model.pop_size, selection_mode='choice').ravel()
+    # testing_compliance_onset_inds = np.random.choice(np.argwhere(isolation_compliance_onset==False).ravel(), size=int(params['TESTING_COMPLIANCE_ONSET']*model.pop_size), replace=False)
+    # testing_compliance_onset      = np.array([True if i in testing_compliance_onset_inds else False for i in range(model.pop_size)], dtype=bool)
+
+    #*************************
+    # Allow testing compliance rates to be differest between students and adults:
+    # testing_compliance_proactive_students = utils.param_as_bool_array(params['TESTING_COMPLIANCE_PROACTIVE_STUDENT'], n=len(network_info['studentIDs']), selection_mode='choice').ravel()
+    # testing_compliance_proactive_adults   = utils.param_as_bool_array(params['TESTING_COMPLIANCE_PROACTIVE_ADULT'], n=len(network_info['teacherIDs']+network_info['staffIDs']), selection_mode='choice').ravel()
+    # testing_compliance_proactive          = np.concatenate([testing_compliance_proactive_students, testing_compliance_proactive_adults])
+
+    # Add a node flag with each individual's age group label:
+    for i in range(N): 
+        model.add_individual_flag(node=i, flag=network_info['node_labels'][i])
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Set up the initial state:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # SPECIAL TO THIS PROJECT:
+    #*************************
+    # Introduce a different number of random prior non-omicron spike exposures for each age group:
+    # instead of model.set_initial_prevalence()
+    model.introduce_random_exposures(num=int(params['INIT_PCT_PRIOR_EXPOSURE_STUDENT']*len(network_info['studentIDs'])), node=network_info['studentIDs'], post_exposure_state='Rp')
+    model.introduce_random_exposures(num=int(params['INIT_PCT_PRIOR_EXPOSURE_ADULT']*len(network_info['teacherIDs']+network_info['staffIDs'])), node=network_info['teacherIDs']+network_info['staffIDs'], post_exposure_state='Rp')
+
+    # Administer initial vaccines:
+    for label in np.unique(network_info['node_labels']):
+        ageGroupIndividuals = model.get_individuals_by_flag(label)
+        ageGroupVaccineUptake = (     params['VACCINE_UPTAKE_STUDENT'] if label == 'student' and params['VACCINE_UPTAKE_STUDENT'] is not None
+                                 else params['VACCINE_UPTAKE_ADULT']   if label in ['teacher', 'staff'] and params['VACCINE_UPTAKE_ADULT'] is not None
+                                 else params['VACCINE_UPTAKE'] )
+        model.vaccinate(node=np.random.choice(ageGroupIndividuals, size=int(ageGroupVaccineUptake*len(ageGroupIndividuals)), replace=False), vaccine_series='covid-vaccine')
+
+    # Administer initial masking:
+    for label in np.unique(network_info['node_labels']):
+        ageGroupIndividuals = model.get_individuals_by_flag(label)
+        ageGroupMaskingUptake = (     params['MASK_UPTAKE_STUDENT'] if label == 'student' and params['MASK_UPTAKE_STUDENT'] is not None
+                                 else params['MASK_UPTAKE_ADULT']   if label in ['teacher', 'staff'] and params['MASK_UPTAKE_ADULT'] is not None
+                                 else params['MASK_UPTAKE'] )
+        model.mask(node=np.random.choice(ageGroupIndividuals, size=int(ageGroupMaskingUptake*len(ageGroupIndividuals)), replace=False), 
+                    susc_effectiveness=params['MASK_EFFECTIVENESS_SUSCEPTIBILITY'], transm_effectiveness=params['MASK_EFFECTIVENESS_TRANSMISSIBILITY'])
+
+    # Add a 'prior_exposure' flag to each individual with a prior infection:
+    # (this flag is on the Rp and Rpv compartments, but adding to individuals
+    #  so they will retain this flag after leaving these compartments)
+    for i in model.get_individuals_by_compartment(['Rp', 'Rpv']): 
+        model.add_individual_flag(node=i, flag='prior_exposure')
+
+    # Introduce a number of random exposures to meet the given init prevalence of removed recovereds:
+    model.introduce_random_exposures(int(params['INIT_PCT_REMOVED']*N), post_exposure_state='R')
+
+    # Introduce a number of random exposures to meet the given init prevalence of active infections:
+    model.introduce_random_exposures(int(params['INIT_PREVALENCE']*N))
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Return the constructed model:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    return model
+
+
+
+
+
+# results, caselogs, models, params = run_SARSCoV2_interventions_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
+
+
+
+# def jitter_plot(data):
+
+#     print(data.columns)
+
+
+
+# jitter_plot(results)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
