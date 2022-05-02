@@ -875,6 +875,9 @@ class CompartmentNetworkModel():
         # Finalize the data series of counts of nodes in each compartment:
         for compartment in self.compartments:
             self.counts[compartment] = np.array(self.counts[compartment], dtype=float)[:self.tidx+1]
+        if(self.track_flag_counts):
+            for flag in self.allCompartmentFlags.union(self.allNodeFlags):
+                self.flag_counts[flag] = np.array(self.flag_counts[flag], dtype=float)[:self.tidx+1]
         #------------------------------------
         self.N = np.array(self.N, dtype=float)[:self.tidx+1]
         #----------------------------------------

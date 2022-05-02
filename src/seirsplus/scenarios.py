@@ -22,7 +22,7 @@ from seirsplus.sim_loops import *
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-def run_SARSCoV2_interventions_scenario(model=None, parameters=None, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, output_file_extn='.csv'):
+def run_SARSCoV2_interventions_scenario(model=None, parameters=None, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, return_model_objects=True, output_file_extn='.csv'):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Load in model and scenario parameter specifications:
@@ -36,15 +36,15 @@ def run_SARSCoV2_interventions_scenario(model=None, parameters=None, reps=1, met
     if(model is None):
         model = generate_SARSCoV2_interventions_model
 
-    results, caselogs = run_interventions_scenario(model=model, parameters=params, reps=reps, metadata=metadata, outdir=outdir, run_label=run_label, save_results=save_results, save_caselogs=save_caselogs, save_partial_results=save_partial_results, results_columns=results_columns, caselog_columns=caselog_columns, output_file_extn=output_file_extn)
+    results, caselogs, models, params = run_interventions_scenario(model=model, parameters=params, reps=reps, metadata=metadata, outdir=outdir, run_label=run_label, save_results=save_results, save_caselogs=save_caselogs, save_partial_results=save_partial_results, results_columns=results_columns, caselog_columns=caselog_columns, output_file_extn=output_file_extn)
 
-    return results, caselogs
+    return results, caselogs, models, params
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-def run_SARSCoV2_community_scenario(parameters=None, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, output_file_extn='.csv'):
+def run_SARSCoV2_community_scenario(parameters=None, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, return_model_objects=True, output_file_extn='.csv'):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Load in model and scenario parameter specifications:
@@ -55,15 +55,15 @@ def run_SARSCoV2_community_scenario(parameters=None, reps=1, metadata={}, outdir
     if(parameters is not None):
         params.update(parameters)
 
-    results, caselogs = run_interventions_scenario(model=generate_SARSCoV2_community_model, parameters=params, reps=reps, metadata=metadata, outdir=outdir, run_label=run_label, save_results=save_results, save_caselogs=save_caselogs, save_partial_results=save_partial_results, results_columns=results_columns, caselog_columns=caselog_columns, output_file_extn=output_file_extn)
+    results, caselogs, models, params = run_interventions_scenario(model=generate_SARSCoV2_community_model, parameters=params, reps=reps, metadata=metadata, outdir=outdir, run_label=run_label, save_results=save_results, save_caselogs=save_caselogs, save_partial_results=save_partial_results, results_columns=results_columns, caselog_columns=caselog_columns, output_file_extn=output_file_extn)
 
-    return results, caselogs
+    return results, caselogs, models, params
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-def run_SARSCoV2_primary_school_scenario(parameters=None, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, output_file_extn='.csv'):
+def run_SARSCoV2_primary_school_scenario(parameters=None, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, return_model_objects=True, output_file_extn='.csv'):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Load in model and scenario parameter specifications:
@@ -74,15 +74,15 @@ def run_SARSCoV2_primary_school_scenario(parameters=None, reps=1, metadata={}, o
     if(parameters is not None):
         params.update(parameters)
 
-    results, caselogs = run_interventions_scenario(model=generate_SARSCoV2_primary_school_model, parameters=params, reps=reps, metadata=metadata, outdir=outdir, run_label=run_label, save_results=save_results, save_caselogs=save_caselogs, save_partial_results=save_partial_results, results_columns=results_columns, caselog_columns=caselog_columns, output_file_extn=output_file_extn)
+    results, caselogs, models, params = run_interventions_scenario(model=generate_SARSCoV2_primary_school_model, parameters=params, reps=reps, metadata=metadata, outdir=outdir, run_label=run_label, save_results=save_results, save_caselogs=save_caselogs, save_partial_results=save_partial_results, results_columns=results_columns, caselog_columns=caselog_columns, output_file_extn=output_file_extn)
 
-    return results, caselogs
+    return results, caselogs, models, params
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-def run_SARSCoV2_secondary_school_scenario(parameters=None, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, output_file_extn='.csv'):
+def run_SARSCoV2_secondary_school_scenario(parameters=None, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, return_model_objects=True, output_file_extn='.csv'):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Load in model and scenario parameter specifications:
@@ -93,15 +93,15 @@ def run_SARSCoV2_secondary_school_scenario(parameters=None, reps=1, metadata={},
     if(parameters is not None):
         params.update(parameters)
 
-    results, caselogs = run_interventions_scenario(model=generate_SARSCoV2_secondary_school_model, parameters=params, reps=reps, metadata=metadata, outdir=outdir, run_label=run_label, save_results=save_results, save_caselogs=save_caselogs, save_partial_results=save_partial_results, results_columns=results_columns, caselog_columns=caselog_columns, output_file_extn=output_file_extn)
+    results, caselogs, models, params = run_interventions_scenario(model=generate_SARSCoV2_secondary_school_model, parameters=params, reps=reps, metadata=metadata, outdir=outdir, run_label=run_label, save_results=save_results, save_caselogs=save_caselogs, save_partial_results=save_partial_results, results_columns=results_columns, caselog_columns=caselog_columns, output_file_extn=output_file_extn)
 
-    return results, caselogs
+    return results, caselogs, models, params
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-def run_interventions_scenario(model, parameters, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, output_file_extn='.csv'):
+def run_interventions_scenario(model, parameters, reps=1, metadata={}, outdir='./', run_label=None, save_results=True, save_caselogs=False, save_partial_results=True, results_columns=None, caselog_columns=None, return_model_objects=True, output_file_extn='.csv'):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Load in model and scenario parameter specifications:
@@ -130,6 +130,11 @@ def run_interventions_scenario(model, parameters, reps=1, metadata={}, outdir='.
         results_dfs = []
         caselog_dfs = []
 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Initialize data structures for storing model objects:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    model_objs = {} if(return_model_objects) else None
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # RUN (REPLICATE) SIMULATIONS FOR EACH PARAMETER SET:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -155,13 +160,12 @@ def run_interventions_scenario(model, parameters, reps=1, metadata={}, outdir='.
             print(f"\tsimulation rep {rep}/{reps}...\t\r", end="")
 
             # Get the model to run (the model fn argument may be a pointer to a function that generates a model):
-            if(callable(model)):
-                model = model(paramSetDict)
+            model_obj = model(paramSetDict) if(callable(model)) else copy.deepcopy(model)
 
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # Simulate the model scenario:
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            run_interventions_sim(model, 
+            run_interventions_sim(model_obj, 
                                     # Scenario run time params:
                                     T = paramSetDict['T'], 
                                     max_dt = paramSetDict['MAX_DT'], 
@@ -180,7 +184,7 @@ def run_interventions_scenario(model, parameters, reps=1, metadata={}, outdir='.
                                     # Case introduction params:
                                     case_introduction_rate = paramSetDict['CASE_INTRODUCTION_RATE'],
                                     # Network params:
-                                    network_active_cadences = {network: 'daily' if network!='household' else 'nightly' for network in model.networks},
+                                    network_active_cadences = {network: 'daily' if network!='household' else 'nightly' for network in model_obj.networks},
                                     # Isolation params:
                                     isolation_period = paramSetDict['ISOLATION_PERIOD'],
                                     isolation_delay_onset = paramSetDict['ISOLATION_DELAY_ONSET'],
@@ -236,7 +240,7 @@ def run_interventions_scenario(model, parameters, reps=1, metadata={}, outdir='.
                                     tracing_compliance = paramSetDict['TRACING_COMPLIANCE'],
                                     tracing_exclude_networks=paramSetDict['TRACING_EXCLUDE_NETWORKS'],
                                     # Misc. params:
-                                    intervention_groups=model.intervention_groups if hasattr(model, 'intervention_groups') else None,
+                                    intervention_groups=model_obj.intervention_groups if hasattr(model_obj, 'intervention_groups') else None,
                                     print_updates=bool(paramSetDict['PRINT_UPDATES'])
                                     )
 
@@ -244,22 +248,22 @@ def run_interventions_scenario(model, parameters, reps=1, metadata={}, outdir='.
             # Update results data with other info:
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # Store model/scenario parameter values with results:
-            model.results.update(paramSetDict)
+            model_obj.results.update(paramSetDict)
             # Store disease statistics:
-            model.results.update(model.disease_stats)
+            model_obj.results.update(model_obj.disease_stats)
             # Store network statistics:
-            overallNetwork = union_of_networks([network for network in [network['networkx'] for network in model.networks.values()]])
-            model.results.update(network_stats(networks=overallNetwork, names="overall_network", calc_connected_components=True))
+            overallNetwork = union_of_networks([network for network in [network['networkx'] for network in model_obj.networks.values()]])
+            model_obj.results.update(network_stats(networks=overallNetwork, names="overall_network", calc_connected_components=True))
             # Store simulation metadata:
-            model.results.update(metadata)
+            model_obj.results.update(metadata)
         
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # Add results data frames to running data set:
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             if(save_partial_results):
-                results_df_master = results_df_master.append(model.get_results_dataframe(), ignore_index=True) if results_df_master is not None else model.get_results_dataframe()
+                results_df_master = results_df_master.append(model_obj.get_results_dataframe(), ignore_index=True) if results_df_master is not None else model_obj.get_results_dataframe()
                 if(paramSetDict['TRACK_CASE_INFO']):
-                    caselog_df = model.get_case_log_dataframe()
+                    caselog_df = model_obj.get_case_log_dataframe()
                     # Add columns with the given metadata values (including rep number)
                     for key, val in metadata.items():
                         caselog_df[key] = val if not (isinstance(val, (list, np.ndarray)) and len(val) == 0) else None
@@ -270,13 +274,21 @@ def run_interventions_scenario(model, parameters, reps=1, metadata={}, outdir='.
                 if(save_caselogs):
                     utils.save_dataframe(caselog_df_master, file_name=outdir+'/caselogs'+('_'+run_label if run_label is not None else ''), file_extn=output_file_extn, columns=caselog_columns)
             else:
-                results_dfs.append(model.get_results_dataframe())
+                results_dfs.append(model_obj.get_results_dataframe())
                 if(paramSetDict['TRACK_CASE_INFO']):
-                    caselog_df = model.get_case_log_dataframe()
+                    caselog_df = model_obj.get_case_log_dataframe()
                     # Add columns with the given metadata values (including rep number)
                     for key, val in metadata.items():
                         caselog_df[key] = val if not (isinstance(val, (list, np.ndarray)) and len(val) == 0) else None
                     caselog_dfs.append(caselog_df)
+
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            if(return_model_objects):
+                try:
+                    model_objs[paramSetNum].append(model_obj)
+                except KeyError:
+                    model_objs[paramSetNum] = [model_obj]
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Compile all param set and rep data into single dataframes:
@@ -293,7 +305,7 @@ def run_interventions_scenario(model, parameters, reps=1, metadata={}, outdir='.
     if(save_caselogs):
         utils.save_dataframe(caselog_df_master, file_name=outdir+'/caselogs'+('_'+run_label if run_label is not None else ''), file_extn=output_file_extn, columns=caselog_columns)
 
-    return results_df_master, caselog_df_master
+    return results_df_master, caselog_df_master, model_objs, params
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -967,6 +979,42 @@ def generate_SARSCoV2_secondary_school_model(parameters=None):
     # Return the constructed model:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     return model
+
+
+
+
+
+# results, caselogs, models, params = run_SARSCoV2_interventions_scenario(parameters={'R0_MEAN': [3.0, 6.0], 'PROACTIVE_TESTING_CADENCE':['never', 'weekly', 'daily']}, reps=3)
+
+
+
+# def jitter_plot(data):
+
+#     print(data.columns)
+
+
+
+# jitter_plot(results)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

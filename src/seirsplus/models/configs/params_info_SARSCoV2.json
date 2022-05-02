@@ -1,0 +1,620 @@
+{
+	"T": {
+		"label": "Simulation duration (days)"
+		},
+
+	"R0_MEAN": {
+		"label": "Mean R0", 
+		"moreinfo": "The reproductive number R0 is the average number of subsequent infections expected to result from a single infected individual. A higher mean R0 increases how quickly the virus spreads."
+		},
+
+	"LATENT_PERIOD_MEAN": {
+		"label": "Mean latent period (days)", 
+		"moreinfo": "Mean time individuals spend in the Exposed compartment."
+		},
+
+	"PRESYMPTOMATIC_PERIOD_MEAN": {
+		"label": "Mean pre-symptomatic period (days)", 
+		"moreinfo": "Mean time individuals spend in the Pre-symptomatic compartment."
+		},
+
+	"SYMPTOMATIC_PERIOD_MEAN": {
+		"label": "Mean (a)symptomatic period (days)", 
+		"moreinfo": "Mean time individuals spend in the Symptomatic or Asymptomatic compartment."
+		},
+
+	"PCT_ASYMPTOMATIC": {
+		"label": "Fraction of asymptomatic cases", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment."
+		},
+
+	"N": {
+		"label": "Population size", 
+		"moreinfo": ""
+		},
+
+	"INIT_PREVALENCE": {
+		"label": "Initial prevalence (% of population)", 
+		"moreinfo": "Fraction of individuals in the Exposed compartment at the beginning of the simulation."
+		},
+
+	"INIT_PCT_PRIOR_EXPOSURE": {
+		"label": "Initial fraction of individuals with prior exposure (% of population)", 
+		"moreinfo": "Fraction of individuals in the Recovered from Prior infection (Rp) compartment at the beginning of the simulation."
+		},
+
+	"INIT_PCT_REMOVED": {
+		"label": "Initial fraction of removed individuals (% of population)", 
+		"moreinfo": "Fraction of individuals in the Removed (R) compartment at the beginning of the simulation."
+		},
+
+	"CASE_INTRODUCTION_RATE": {
+		"label": "Case introduction rate (average cases per day)", 
+		"moreinfo": "Expected number of cases introduced to the population each day (the actual number of cases per day is drawn from a Poisson distribution)"
+		},
+
+	"ISOLATION_PERIOD": {
+		"label": "Isolation period (days)", 
+		"moreinfo": "Number of days individuals spend in a quarantine state after entering isolation"
+		},
+
+	"ISOLATION_COMPLIANCE_ONSET": {
+		"label": "Rate of compliance with isolation upon onset of symptom (% of population)", 
+		"moreinfo": "Fraction of individuals that enter isolation automatically (without a positive test) upon entering the Symptomatic compartment (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"ISOLATION_COMPLIANCE_POSITIVE": {
+		"label": "Rate of compliance with isolation upon positive test resul (% of population)", 
+		"moreinfo": "Fraction of individuals that enter isolation after receiving a positive test result (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"PROACTIVE_TESTING_CADENCE": {
+		"label": "Proactive testing cadence", 
+		"moreinfo": "Frequency with which proactive random tests are administered to participating individuals. Supported cadences include never, monthly, biweekly, weekly, semiweekly, 2x-weekly, 3x-weekly, daily, semi-daily, weekend, or weekday."
+		},
+
+	"TESTING_ACCESSIBILITY_PROACTIVE": {
+		"label": "Accessibility of proactive tests (% of population)", 
+		"moreinfo": "Fraction of individuals that can obtain a proactive test when setting out to participate in proactive testing on a given day."
+		},
+
+	"TESTING_COMPLIANCE_PROACTIVE": {
+		"label": "Rate of compliance with proactive testing (% of population)", 
+		"moreinfo": "Fraction of individuals that will participate in proactive testing (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a day-by-day basis)"
+		},
+
+	"TEST_TYPE_PROACTIVE": {
+		"label": "Proactive test type", 
+		"moreinfo": "The type of test to use for proactive testing. Supported test types include 'antigen' and 'molecular', which feature corresponding temporal sensitivity and specificity parameterizations."
+		},
+
+	"TESTING_COMPLIANCE_ONSET": {
+		"label": "Rate of compliance with testing upon onset of symptoms (% of population)", 
+		"moreinfo": "Fraction of individuals that will test upon the onset of symptoms (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a day-by-day basis)"
+		},
+
+	"TEST_TYPE_ONSET": {
+		"label": "Test type for symptomatic testing", 
+		"moreinfo": "The type of test to use for proactive testing. Supported test types include 'antigen' and 'molecular', which feature corresponding temporal sensitivity and specificity parameterizations."
+		},
+
+	"TRACING_PCT_CONTACTS": {
+		"label": "Fraction of contacts traced for each positive case (% of population)", 
+		"moreinfo": "Fraction of network contacts that are traced and tested for each primary positive case (the contacts to be tested are chosen randomly)"
+		},
+
+	"TRACING_DELAY": {
+		"label": "Delay between primary positive result and testing of traced contacts (days)", 
+		"moreinfo": "Number of days between primary positive test result and the administration of tests to traced contacts"
+		},
+
+	"TRACING_COMPLIANCE": {
+		"label": "Rate of compliance with providing contacts for tracing (% of population)", 
+		"moreinfo": "Fraction of individuals that will provide their network contacts for the purposes of contact tracing when receiving a positive test result; non-compliant individuals provide zero contacts (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"SOCIAL_DISTANCING_CONTACT_DROP_PROB": {
+		"label": "Social distancing intensity (fraction of network edges dropped per individual) (% of contacts)", 
+		"moreinfo": "Fraction of network contact edges that are dropped per individual (the particular edges that are dropped are drawn randomly)"
+		},
+
+	"SOCIAL_DISTANCING_COMPLIANCE": {
+		"label": "Rate of compliance with social distancin (% of population)", 
+		"moreinfo": "Fraction of individuals that will participate in social distancing; non-compliant individuals drop no contacts regardless of social distancing intensity (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"MASK_EFFECTIVENESS_SUSCEPTIBILITY": {
+		"label": "Effectiveness of masks in preventing infection (% reduction in susceptibility)", 
+		"moreinfo": "A mask-wearing individual's susceptibility to infection is scaled down by the given fraction."
+		},
+
+	"MASK_EFFECTIVENESS_TRANSMISSIBILITY": {
+		"label": "Effectiveness of masks in preventing transmission (% reduction in transmissibility)", 
+		"moreinfo": "A mask-wearing individual's transmissibility is scaled down by the given fraction."
+		},
+
+	"MASK_UPTAKE": {
+		"label": "Rate of mask uptake (% of population)", 
+		"moreinfo": "Fraction of individuals that will wear masks; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"VACCINE_EFFECTIVENESS_SUSCEPTIBILITY": {
+		"label": "Effectiveness of vaccines in preventing infection (% reduction in susceptibility)", 
+		"moreinfo": "A vaccinated individual's susceptibility to infection is scaled down by the given fraction."
+		},
+
+	"VACCINE_EFFECTIVENESS_TRANSMISSIBILITY": {
+		"label": "Effectiveness of vaccines in preventing transmission (% reduction in transmissibility)", 
+		"moreinfo": "A vaccinated individual's transmissibility is scaled down by the given fraction."
+		},
+
+	"VACCINE_UPTAKE": {
+		"label": "Rate of vaccine uptake (% of population)", 
+		"moreinfo": "Fraction of individuals that will receive vaccines; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"LATENT_PERIOD_CV": {
+		"label": "Latent period coefficient of variation (days)", 
+		"moreinfo": "Parameterizes the spread of the gamma distribution from which individual latent period durations are drawn"
+		},
+
+	"PRESYMPTOMATIC_PERIOD_CV": {
+		"label": "Pre-symptomatic period coefficient of variation (days)", 
+		"moreinfo": "Parameterizes the spread of the gamma distribution from which individual pre-symptomatic period durations are drawn"
+		},
+
+	"SYMPTOMATIC_PERIOD_CV": {
+		"label": "(A)Symptomatic period coefficient of variation (days)", 
+		"moreinfo": "Parameterizes the spread of the gamma distribution from which individual (a)symptomatic period durations are drawn"
+		},
+
+	"PCT_ASYMPTOMATIC_AGE0TO4": {
+		"label": "Fraction of asymptomatic cases: Ages 0- (% of population)", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment."
+		},
+
+	"PCT_ASYMPTOMATIC_AGE5TO11": {
+		"label": "Fraction of asymptomatic cases: Ages 5-1 (% of population)", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment."
+		},
+
+	"PCT_ASYMPTOMATIC_AGE12TO17": {
+		"label": "Fraction of asymptomatic cases: Ages 12-1 (% of population)", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment."
+		},
+
+	"PCT_ASYMPTOMATIC_AGE18TO24": {
+		"label": "Fraction of asymptomatic cases: Ages 18-2 (% of population)", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment."
+		},
+
+	"PCT_ASYMPTOMATIC_AGE25TO64": {
+		"label": "Fraction of asymptomatic cases: Ages 25-6 (% of population)", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment."
+		},
+
+	"PCT_ASYMPTOMATIC_AGE65PLUS": {
+		"label": "Fraction of asymptomatic cases: Ages 65 (% of population)", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment."
+		},
+
+	"PCT_ASYMPTOMATIC_VACCINATED": {
+		"label": "Fraction of asymptomatic cases: Vaccinated individuals (default (% of population)", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment. "
+		},
+
+	"PCT_ASYMPTOMATIC_VACCINATED_AGE0TO4": {
+		"label": "Fraction of asymptomatic cases: Vaccinated individuals, Ages 0- (% of population)", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment."
+		},
+
+	"PCT_ASYMPTOMATIC_VACCINATED_AGE5TO11": {
+		"label": "Fraction of asymptomatic cases: Vaccinated individuals, Ages 5-1 (% of population)", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment."
+		},
+
+	"PCT_ASYMPTOMATIC_VACCINATED_AGE12TO17": {
+		"label": "Fraction of asymptomatic cases: Vaccinated individuals, Ages 12-1 (% of population)", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment."
+		},
+
+	"PCT_ASYMPTOMATIC_VACCINATED_AGE18TO24": {
+		"label": "Fraction of asymptomatic cases: Vaccinated individuals, Ages 18-2 (% of population)", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment."
+		},
+
+	"PCT_ASYMPTOMATIC_VACCINATED_AGE25TO64": {
+		"label": "Fraction of asymptomatic cases: Vaccinated individuals, Ages 25-6 (% of population)", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment."
+		},
+
+	"PCT_ASYMPTOMATIC_VACCINATED_AGE65PLUS": {
+		"label": "Fraction of asymptomatic cases: Vaccinated individuals, Ages 65 (% of population)", 
+		"moreinfo": "Probability that an infected individual progresses to the Asymptomatic compartment as opposed to the Symptomatic compartment."
+		},
+
+	"R0_CV": {
+		"label": "R0 coefficient of variation", 
+		"moreinfo": "Parameterizes the spread of the gamma distribution from which individual R0 values are drawn. A CV of 2.0 gives an overdispersed distribution of individual transmissibilities that roughly corresponds to the 80:20 rule that predicts that 80% of cases are contributed by 20% of individuals. Lowever CV values correspond to lower variance distributions of individual transmissibilities. "
+		},
+
+	"RELATIVE_TRANSMISSIBILITY_PRESYMPTOMATIC": {
+		"label": "Relative transmissibility of pre-symptomatic individuals", 
+		"moreinfo": "The transmissibility of the Presymptomatic state relative to the Symptomatic state"
+		},
+
+	"RELATIVE_TRANSMISSIBILITY_ASYMPTOMATIC": {
+		"label": "Relative transmissibility of asymptomatic individuals", 
+		"moreinfo": "The transmissibility of the Asymptomatic state relative to the Symptomatic state"
+		},
+
+	"RELATIVE_TRANSMISSIBILITY_AGE0TO4": {
+		"label": "Relative transmissibility of  0-4 year-olds", 
+		"moreinfo": "The transmissibility of 0-4 year-olds relative to adults (25-64 year-olds)"
+		},
+
+	"RELATIVE_TRANSMISSIBILITY_AGE5TO11": {
+		"label": "Relative transmissibility of  5-11 year-olds", 
+		"moreinfo": "The transmissibility of 5-11 year-olds relative to adults (25-64 year-olds)"
+		},
+
+	"RELATIVE_TRANSMISSIBILITY_AGE12TO17": {
+		"label": "Relative transmissibility of  12-17 year-olds", 
+		"moreinfo": "The transmissibility of 12-17 year-olds relative to adults (25-64 year-olds)"
+		},
+
+	"RELATIVE_TRANSMISSIBILITY_AGE18TO24": {
+		"label": "Relative transmissibility of  18-24 year-olds", 
+		"moreinfo": "The transmissibility of 18-24 year-olds relative to adults (25-64 year-olds)"
+		},
+
+	"RELATIVE_TRANSMISSIBILITY_AGE65PLUS": {
+		"label": "Relative transmissibility of  65+ year-olds", 
+		"moreinfo": "The transmissibility of 65+ year-olds relative to adults (25-64 year-olds)"
+		},
+
+	"RELATIVE_SUSCEPTIBILITY_PRIOREXPOSURE": {
+		"label": "Relative susceptibility of individuals with prior exposure to re-infection", 
+		"moreinfo": "The susceptibility of the Recovered from Prior Exposure (Rp) state relative to the Susceptible (S) state"
+		},
+
+	"RELATIVE_SUSCEPTIBILITY_REINFECTION": {
+		"label": "Relative susceptibility of removed individuals to re-infection", 
+		"moreinfo": "The susceptibility of the Removed (R) state relative to the Susceptible (S) state"
+		},
+
+	"RELATIVE_SUSCEPTIBILITY_AGE0TO4": {
+		"label": "Relative susceptibility of 0-4 year-olds", 
+		"moreinfo": "The susceptibility of 0-4 year-olds relative to adults (25-64 year-olds)"
+		},
+
+	"RELATIVE_SUSCEPTIBILITY_AGE5TO11": {
+		"label": "Relative susceptibility of 5-11 year-olds", 
+		"moreinfo": "The susceptibility of 5-11 year-olds relative to adults (25-64 year-olds)"
+		},
+
+	"RELATIVE_SUSCEPTIBILITY_AGE12TO17": {
+		"label": "Relative susceptibility of 12-17 year-olds", 
+		"moreinfo": "The susceptibility of 12-17 year-olds relative to adults (25-64 year-olds)"
+		},
+
+	"RELATIVE_SUSCEPTIBILITY_AGE18TO24": {
+		"label": "Relative susceptibility of 18-24 year-olds", 
+		"moreinfo": "The susceptibility of 18-24 year-olds relative to adults (25-64 year-olds)"
+		},
+
+	"RELATIVE_SUSCEPTIBILITY_AGE65PLUS": {
+		"label": "Relative susceptibility of 65+ year-olds", 
+		"moreinfo": "The susceptibility of 65+ year-olds relative to adults (25-64 year-olds)"
+		},
+
+	"MIXEDNESS": {
+		"label": "Population mixedness", 
+		"moreinfo": "Parameterizes how well-mixed the population is, i.e., the fraction of transmissions that are global (among randomly drawn individuals from the overall population) as opposed to local (between close contacts in the contact network)"
+		},
+
+	"OPENNESS": {
+		"label": "Population openness", 
+		"moreinfo": "Parameterizes how open the focal population is to exogenous contacts"
+		},
+
+	"ISOLATION_CLOCK_MODE": {
+		"label": "Isolation period clock mode", 
+		"moreinfo": "The point from which an individual's isolation time is counted from: Supported options are 'result' (time of positive test result), 'test' (time of test), and 'onset' (time of symptom onset)"
+		},
+
+	"ISOLATION_COMPLIANCE_ONSET_GROUPMATE": {
+		"label": "Rate of compliance with entering isolation upon a groupmate's onset of symptom (% of population)", 
+		"moreinfo": "Fraction of individuals that will enter isolation upon a groupmate's onset of symptoms (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"ISOLATION_COMPLIANCE_POSITIVE_GROUPMATE": {
+		"label": "Rate of compliance with entering isolation upon a groupmate's positive test resul (% of population)", 
+		"moreinfo": "Fraction of individuals that will enter isolation upon a groupmate's positive test results (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"ISOLATION_COMPLIANCE_TRACED": {
+		"label": "Rate of compliance with entering isolation upon being traced as a contact of a positive cas (% of population)", 
+		"moreinfo": "Fraction of individuals that will enter isolation upon being traced as a contact of a positive case (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"ISOLATION_DELAY_ONSET": {
+		"label": "Delay of isolation following onset of symptoms (days)", 
+		"moreinfo": "Number of days between an individual's onset of symptoms and them entering isolation"
+		},
+
+	"ISOLATION_DELAY_ONSET_GROUPMATE": {
+		"label": "Delay of isolation following a groupmate's onset of symptoms (days)", 
+		"moreinfo": "Number of days between an individual's groupmate's onset of symptoms and the individual entering isolation"
+		},
+
+	"ISOLATION_DELAY_POSITIVE": {
+		"label": "Delay of isolation following a positive test result (days)", 
+		"moreinfo": "Number of days between an individual's positive test result and them entering isolation"
+		},
+
+	"ISOLATION_DELAY_POSITIVE_GROUPMATE": {
+		"label": "Delay of isolation following a groupmate's positive test result (days)", 
+		"moreinfo": "Number of days between an individual's groupmate's positive test result and the individual entering isolation"
+		},
+
+	"ISOLATION_DELAY_TRACED": {
+		"label": "Delay of isolation following being traced as a contact of a positive case (days)", 
+		"moreinfo": "Number of days between an individual being traced as a contact and them entering isolation"
+		},
+
+	"ISOLATION_EXCLUDE_COMPARTMENTS": {
+		},
+
+	"ISOLATION_EXCLUDE_FLAGS": {		
+		},
+
+	"ISOLATION_EXCLUDE_ISOLATED": {		
+		},
+
+	"ISOLATION_EXCLUDE_AFTERNUMTESTS": {		
+		},
+
+	"ISOLATION_EXCLUDE_AFTERNUMVACCINEDOSES": {		
+		},
+
+	"TEST_PARAMS_CFG": {		
+		},
+
+	"TEST_RESULT_DELAY_MOLECULAR": {
+		"label": "Antigen test results delay (days)", 
+		"moreinfo": "Number of days between administration of an antigen test and receiving test results"
+		},
+
+	"TEST_RESULT_DELAY_ANTIGEN": {
+		"label": "Molecular test results delay (days)", 
+		"moreinfo": "Number of days between administration of a molecular test and receiving test results"
+		},
+
+	"TESTING_CAPACITY_MAX": {
+		"label": "Max testing capacit (% of population)", 
+		"moreinfo": "Maximum number of tests (across all testing contexts) that can be administered on a single day"
+		},
+
+	"TESTING_CAPACITY_PROACTIVE": {
+		"label": "Proactive testing capacit (% of population)", 
+		"moreinfo": "Maximum number of proactive tests that can be administered on a single day"
+		},
+
+	"PROACTIVE_TESTING_SYNCHRONIZE": {
+		"label": "Synchronize proactive testing cadence (T/F)", 
+		"moreinfo": "If true, adminster proactive tests to all participating individuals on the same day; if false, individuals  test with the same frequency but on different days (frequency of testing days determined by the proactive testing cadence)"
+		},
+
+	"TESTING_COMPLIANCE_ONSET_GROUPMATE": {
+		"label": "Rate of compliance with testing upon a groupmate's onset of symptom (% of population)", 
+		"moreinfo": "Fraction of individuals that will test upon a groupmate's onset of symptoms (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"TESTING_COMPLIANCE_POSITIVE_GROUPMATE": {
+		"label": "Rate of compliance with testing upon a groupmate's positive test resul (% of population)", 
+		"moreinfo": "Fraction of individuals that will test upon a groupmate's positive test results (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"TESTING_COMPLIANCE_TRACED": {
+		"label": "Rate of compliance with testing upon being traced as a contact of a positive cas (% of population)", 
+		"moreinfo": "Fraction of individuals that will test upon being traced as a contact of a positive case (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"TESTING_COMPLIANCE_DEISOLATION": {
+		"label": "Rate of compliance with de-isolation testin (% of population)", 
+		"moreinfo": "Fraction of individuals that will participate in de-isolation testing"
+		},
+
+	"TESTING_DELAY_PROACTIVE": {
+		"label": "Testing delay following the proactive cadence (days)", 
+		"moreinfo": "Number of days between designated proactive testing days (set by the  proactive testing cadence) and administration of those tests"
+		},
+
+	"TESTING_DELAY_ONSET": {
+		"label": "Testing delay following onset of symptoms (days)", 
+		"moreinfo": "Number of days between an individual's onset of symptoms and administration of a symptomatic test"
+		},
+
+	"TESTING_DELAY_ONSET_GROUPMATE": {
+		"label": "Testing delay following a groupmate's onset of symptoms (days)", 
+		"moreinfo": "Number of days between an individual's groupmate's onset of symptoms and administration of a test for that individual"
+		},
+
+	"TESTING_DELAY_POSITIVE_GROUPMATE": {
+		"label": "Testing delay following a groupmate's positive test result (days)", 
+		"moreinfo": "Number of days between an individual's groupmate's positive test result and administration of a test for that individual"
+		},
+
+	"TESTING_DELAY_TRACED": {
+		"label": "Testing delay following being traced as a contact of a positive case (days)", 
+		"moreinfo": "Number of days between being traced as a contact of a positive case and being tested"
+		},
+
+	"TESTING_DELAY_DEISOLATION": {
+		"label": "De-isolation testing delay following entering isolation (days)", 
+		"moreinfo": "Number of days between entering isolation and administration of de-isolation tests"
+		},
+
+	"TEST_TYPE_TRACED": {
+		"label": "Test type for testing of traced contacts", 
+		"moreinfo": "The type of test to use for individuals that test after being traced as a contact of a positive case. Supported test types include 'antigen' and 'molecular', which feature corresponding temporal sensitivity and specificity parameterizations."
+		},
+
+	"TEST_TYPE_ONSET_GROUPMATE": {
+		"label": "Test type for testing of individuals with symptomatic groupmates", 
+		"moreinfo": "The type of test to use for individuals that test after a groupmate develops symptoms. Supported test types include 'antigen' and 'molecular', which feature corresponding temporal sensitivity and specificity parameterizations."
+		},
+
+	"TEST_TYPE_POSITIVE_GROUPMATE": {
+		"label": "Test type for testing of individuals with positive groupmates", 
+		"moreinfo": "The type of test to use for individuals that test after a groupmate returns a positive test result. Supported test types include 'antigen' and 'molecular', which feature corresponding temporal sensitivity and specificity parameterizations."
+		},
+
+	"TEST_TYPE_DEISOLATION": {
+		"label": "Test type for deisolation testing", 
+		"moreinfo": "The type of test to use for individuals that test after being traced as a contact of a positive case. Supported test types include 'antigen' and 'molecular', which feature corresponding temporal sensitivity and specificity parameterizations."
+		},
+
+	"NUM_DEISOLATION_TESTS": {
+		"label": "Number of negative tests required for early deisolation", 
+		"moreinfo": "If non-zero, an individual must get this number of negative test results on the designated de-isolation testing day (parameterized by the de-isolation testing delay) in order to exit isolation early"
+		},
+
+	"TESTING_EXCLUDE_COMPARTMENTS": {
+		},
+
+	"TESTING_EXCLUDE_FLAGS": {		
+		},
+
+	"TESTING_EXCLUDE_ISOLATED": {		
+		},
+
+	"TESTING_EXCLUDE_AFTERNUMTESTS": {		
+		},
+
+	"TESTING_EXCLUDE_AFTERNUMVACCINEDOSES": {		
+		},
+
+	"TRACING_EXCLUDE_NETWORKS": {		
+		},
+
+	"MASK_UPTAKE_AGE0TO4": {
+		"label": "Rate of mask uptake among 0-4 year-old (% of population)", 
+		"moreinfo": "Fraction of individuals that will wear masks; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"MASK_UPTAKE_AGE5TO11": {
+		"label": "Rate of mask uptake among 5-11 year-old (% of population)", 
+		"moreinfo": "Fraction of individuals that will wear masks; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"MASK_UPTAKE_AGE12TO17": {
+		"label": "Rate of mask uptake among 12-17 year-old (% of population)", 
+		"moreinfo": "Fraction of individuals that will wear masks; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"MASK_UPTAKE_AGE18TO24": {
+		"label": "Rate of mask uptake among 18-24 year-old (% of population)", 
+		"moreinfo": "Fraction of individuals that will wear masks; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"MASK_UPTAKE_AGE25TO64": {
+		"label": "Rate of mask uptake among 25-64 year-old (% of population)", 
+		"moreinfo": "Fraction of individuals that will wear masks; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"MASK_UPTAKE_AGE65PLUS": {
+		"label": "Rate of mask uptake among 65+ year-old (% of population)", 
+		"moreinfo": "Fraction of individuals that will wear masks; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"VACCINE_UPTAKE_AGE0TO4": {
+		"label": "Rate of vaccine uptake among 0-4 year-old (% of population)", 
+		"moreinfo": "Fraction of individuals that will receive vaccines; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"VACCINE_UPTAKE_AGE5TO11": {
+		"label": "Rate of vaccine uptake among 5-11 year-old (% of population)", 
+		"moreinfo": "Fraction of individuals that will receive vaccines; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"VACCINE_UPTAKE_AGE12TO17": {
+		"label": "Rate of vaccine uptake among 12-17 year-old (% of population)", 
+		"moreinfo": "Fraction of individuals that will receive vaccines; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"VACCINE_UPTAKE_AGE18TO24": {
+		"label": "Rate of vaccine uptake among 18-24 year-old (% of population)", 
+		"moreinfo": "Fraction of individuals that will receive vaccines; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"VACCINE_UPTAKE_AGE25TO64": {
+		"label": "Rate of vaccine uptake among 25-64 year-old (% of population)", 
+		"moreinfo": "Fraction of individuals that will receive vaccines; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"VACCINE_UPTAKE_AGE65PLUS": {
+		"label": "Rate of vaccine uptake among 65+ year-old (% of population)", 
+		"moreinfo": "Fraction of individuals that will receive vaccines; non-compliant individuals have no corresponding change in susceptibility or transmissibility (compliance status is assigned to individuals at the beginning of the simulation, as opposed to determined on a case-by-case basis)"
+		},
+
+	"MAX_DT": {
+		"label": "Max dt (days)", 
+		"moreinfo": "Maximum step that simulation time can advance in one iteration"
+		},
+
+	"DEFAULT_DT": {
+		"label": "Default dt (days)", 
+		"moreinfo": "Default step that simulation time advances in an iteration when no events have non-zero propensity (rarely relevant)"
+		},
+
+	"TAU_STEP": {
+		"label": "Tau-leaping time step (days)", 
+		"moreinfo": "When provided, sets a fixed iteration time step to be used in a tau-leaping simulation mode"
+		},
+
+	"CADENCE_DT": {
+		"label": "Intervention cadence time interval (days)", 
+		"moreinfo": "Time interval at which the interventions and case introduction logic will be performed"
+		},
+
+	"CADENCE_CYCLE_LENGTH": {
+		"label": "Intervention cadence cycle length (days)", 
+		"moreinfo": "Length of the repeating intervention cadence cycle (e.g., a 28 day cycle specifies a repeating 4 week period relative to which cadences can be defined)"
+		},
+
+	"INIT_CADENCE_OFFSET": {
+		"label": "Initial cadence offset (days)", 
+		"moreinfo": "The day within the cadence cycle at which the simulation starts; defaults to 'random' which starts the simulation at a random point within the intervention cadence cycle"
+		},
+
+	"CADENCE_PRESETS": {		
+		},
+
+	"INTERVENTION_START_TIME": {
+		"label": "Intervention start time (days)", 
+		"moreinfo": "Simulation time at which to activate intervention operations"
+		},
+
+	"INTERVENTION_START_PREVALENCE": {
+		"label": "Intervention start prevalence", 
+		"moreinfo": "Prevalence at which to activate intervention operations"
+		},
+
+	"PREVALENCE_FLAGS": {
+		},
+
+	"ONSET_FLAGS": {
+		},
+
+	"TERMINATE_AT_ZERO_CASES": {
+		"label": "", 
+		"moreinfo": "If true, end the simulation as soon as there are zero active cases"
+		},
+
+	"TRACK_CASE_INFO": {
+		"label": "Track case log information", 
+		"moreinfo": "If true, track and save information about the infector and infectee of each transmission event. Setting to False does not save this information, but increase runtime somewhat and does not generate a large data file."
+		}
+}
